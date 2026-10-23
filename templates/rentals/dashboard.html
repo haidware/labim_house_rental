@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>House Rental Admin</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      body { margin: 0; }
+      header { padding: 22px max(24px, calc((100% - 1080px) / 2)); background: white; border-bottom: 1px solid #dce5eb; }
+      main { max-width: 1080px; margin: 36px auto; padding: 0 20px; }
+      h1 { margin: 0; font-size: 24px; }
+      .intro { color: #657785; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(190px, 1fr)); gap: 16px; margin: 26px 0; }
+      .card, section { padding: 20px; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
+      .number { display: block; margin-top: 8px; font-size: 30px; font-weight: 700; }
+      a { color: #17607a; font-weight: 600; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 12px 8px; border-bottom: 1px solid #e7edf1; text-align: left; }
+      @media (max-width: 600px) { main { margin-top: 24px; } section { overflow-x: auto; } }
+    </style>
+  </head>
+  <body>
+    <header><h1>Labim House Rentals</h1></header>
+    <main>
+      <p class="intro">Manage rental listings and inspection requests.</p>
+      <div class="cards">
+        <div class="card">All listings<span class="number">{{ listing_count }}</span></div>
+        <div class="card">Published<span class="number">{{ published_count }}</span></div>
+        <div class="card">New inspections<span class="number">{{ new_inspection_count }}</span></div>
+      </div>
+      <section>
+        <h2>Recent inspection requests</h2>
+        {% if recent_inspections %}
+          <table>
+            <thead><tr><th>Guest</th><th>Property</th><th>Preferred date</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for inspection in recent_inspections %}
+                <tr>
+                  <td>{{ inspection.guest_name }}</td>
+                  <td>{{ inspection.listing.title }}</td>
+                  <td>{{ inspection.preferred_date|default:"Not specified" }}</td>
+                  <td>{{ inspection.get_status_display }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>No inspection requests yet.</p>
+        {% endif %}
+        <p><a href="{% url 'admin:index' %}">Open administration</a></p>
+      </section>
+    </main>
+  </body>
+</html>
