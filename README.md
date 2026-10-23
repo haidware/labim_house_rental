@@ -59,8 +59,16 @@ separate Supabase project and credentials for rental data.
 
 ## Production configuration
 
-Set `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, `DJANGO_ALLOWED_HOSTS`, and
+Set `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, and
 `DJANGO_CSRF_TRUSTED_ORIGINS`, as well as the Supabase Postgres `DATABASE_URL`.
+On Render, the service automatically adds `RENDER_EXTERNAL_HOSTNAME` to
+`ALLOWED_HOSTS` and the matching HTTPS CSRF trusted origin. A custom domain
+must also be included in `DJANGO_ALLOWED_HOSTS` and
+`DJANGO_CSRF_TRUSTED_ORIGINS`. Debug mode is always disabled on Render.
+
+Set a persistent, randomly generated `DJANGO_SECRET_KEY` in Render's private
+environment variables. If it is missing, the app uses a secure temporary key
+and logs a warning; sessions will be invalidated when the service restarts.
 Run `python manage.py migrate` during deployment and serve static/media files
 using production storage. Local media storage is intended for development;
 Supabase Storage integration is a follow-up before hosting property photos.
