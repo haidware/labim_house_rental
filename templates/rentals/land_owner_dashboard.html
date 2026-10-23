@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Land and property owner dashboard | Labim House Rentals</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      body { margin: 0; }
+      header { display: flex; justify-content: space-between; align-items: center; padding: 20px max(24px, calc((100% - 1080px) / 2)); background: white; border-bottom: 1px solid #dce5eb; }
+      main { max-width: 1080px; margin: 36px auto; padding: 0 20px; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 14px; margin: 24px 0; }
+      .card, section { padding: 18px; border: 1px solid #dce5eb; border-radius: 12px; background: white; }
+      .number { display: block; margin-top: 8px; font-size: 28px; font-weight: 700; }
+      a { color: #17607a; font-weight: 600; }
+      .button, button { padding: 10px 14px; border: 0; border-radius: 6px; background: #17607a; color: white; text-decoration: none; font-weight: 600; cursor: pointer; }
+      form { display: inline; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 12px 8px; border-bottom: 1px solid #e7edf1; text-align: left; }
+      @media (max-width: 600px) { main { margin-top: 24px; } section { overflow-x: auto; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Land and property owner dashboard</strong>
+      <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
+    </header>
+    <main>
+      <h1>Welcome, {{ request.user.first_name|default:request.user.username }}</h1>
+      <p>Submit land for rent or sale. Haidware reviews every listing before it becomes public.</p>
+      {% if messages %}{% for message in messages %}<p>{{ message }}</p>{% endfor %}{% endif %}
+      <div class="cards">
+        <div class="card">Your listings<span class="number">{{ listing_count }}</span></div>
+        <div class="card">Published<span class="number">{{ published_count }}</span></div>
+        <div class="card">Awaiting review<span class="number">{{ pending_count }}</span></div>
+      </div>
+      <p><a class="button" href="{% url 'owner_listing_create' %}">Add a land/property listing</a></p>
+      <section>
+        <h2>Your land and property listings</h2>
+        {% if listings %}
+          <table>
+            <thead><tr><th>Property</th><th>Offer</th><th>Location</th><th>Price</th><th>Status</th><th></th></tr></thead>
+            <tbody>
+              {% for listing in listings %}
+                <tr>
+                  <td>{{ listing.title }}</td>
+                  <td>{{ listing.get_transaction_type_display }}</td>
+                  <td>{{ listing.city }}, {{ listing.state }}</td>
+                  <td>{% if listing.transaction_type == "sale" %}NGN {{ listing.sale_price }}{% else %}NGN {{ listing.annual_rent }} / year{% endif %}</td>
+                  <td>{{ listing.get_status_display }}</td>
+                  <td>{% if listing.status == "draft" or listing.status == "pending_review" or listing.status == "needs_changes" %}<a href="{% url 'owner_listing_edit' listing.pk %}">Edit</a>{% endif %}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p>You have not added any land or property listings yet.</p>
+        {% endif %}
+      </section>
+    </main>
+  </body>
+</html>

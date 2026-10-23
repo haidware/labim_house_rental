@@ -5,12 +5,40 @@ from django.utils.text import slugify
 
 
 class RentalListing(models.Model):
+    class Category(models.TextChoices):
+        HOME = "home", "House or home"
+        LAND = "land", "Land or property"
+
+    class TransactionType(models.TextChoices):
+        RENT = "rent", "For rent"
+        SALE = "sale", "For sale"
+
     class PublicationStatus(models.TextChoices):
         DRAFT = "draft", "Draft"
+        PENDING_REVIEW = "pending_review", "Pending review"
+        NEEDS_CHANGES = "needs_changes", "Changes requested"
         PUBLISHED = "published", "Published"
         RENTED = "rented", "Rented"
         ARCHIVED = "archived", "Archived"
 
+    owner = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="rental_listings",
+    )
+    category = models.CharField(
+        max_length=12,
+        choices=Category.choices,
+        default=Category.HOME,
+        db_index=True,
+    )
+    transaction_type = models.CharField(
+        max_length=8,
+        choices=TransactionType.choices,
+        default=TransactionType.RENT,
+    )
     title = models.CharField(max_length=180)
     slug = models.SlugField(max_length=200, unique=True, blank=True)
     description = models.TextField()
@@ -20,9 +48,18 @@ class RentalListing(models.Model):
     property_type = models.CharField(max_length=60, blank=True)
     bedrooms = models.PositiveSmallIntegerField(default=1)
     bathrooms = models.PositiveSmallIntegerField(default=1)
-    annual_rent = models.PositiveBigIntegerField(validators=[MinValueValidator(1)])
+    annual_rent = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+    )
+    sale_price = models.PositiveBigIntegerField(
+        null=True,
+        blank=True,
+        validators=[MinValueValidator(1)],
+    )
     status = models.CharField(
-        max_length=12,
+        max_length=20,
         choices=PublicationStatus.choices,
         default=PublicationStatus.DRAFT,
         db_index=True,
@@ -123,3 +160,36 @@ class RentalAdminProfile(models.Model):
 
     def __str__(self):
         return f"Rental admin profile for {self.user}"
+
+
+class OwnerProfile(models.Model):
+    class OwnerType(models.TextChoices):
+        HOME = "home", "House or home owner"
+        LAND = "land", "Land or property owner"
+
+    class AccountStatus(models.TextChoices):
+        PENDING = "pending", "Pending approval"
+        APPROVED = "approved", "Approved"
+        REJECTED = "rejected", "Rejected"
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="owner_profile",
+    )
+    owner_type = models.CharField(max_length=8, choices=OwnerType.choices)
+    phone = models.CharField(max_length=40)
+    status = models.CharField(
+        max_length=12,
+        choices=AccountStatus.choices,
+        default=AccountStatus.PENDING,
+        db_index=True,
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("created_at",)
+        db_table = "rental_owner_profiles"
+
+    def __str__(self):
+        return f"{self.get_owner_type_display()}: {self.user}"

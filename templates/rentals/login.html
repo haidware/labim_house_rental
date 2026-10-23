@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Sign in | Labim House Rentals</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      main { max-width: 440px; margin: 8vh auto; padding: 28px; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
+      label { display: block; margin-top: 16px; font-weight: 600; }
+      input { box-sizing: border-box; width: 100%; margin-top: 6px; padding: 10px; border: 1px solid #bdcbd4; border-radius: 6px; }
+      button { margin-top: 20px; padding: 10px 16px; border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 600; cursor: pointer; }
+      a { color: #17607a; }
+      .error { color: #9a2f25; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Sign in</h1>
+      <p>Haidware staff and approved property owners can sign in here.</p>
+      {% if form.errors %}<p class="error">Sign-in failed. Check your details or contact Haidware if your owner account is awaiting approval.</p>{% endif %}
+      <form method="post">
+        {% csrf_token %}
+        <input type="hidden" name="next" value="{{ next }}">
+        <label for="{{ form.username.id_for_label }}">Username</label>
+        {{ form.username }}
+        <label for="{{ form.password.id_for_label }}">Password</label>
+        {{ form.password }}
+        <button type="submit">Sign in</button>
+      </form>
+      <p><a href="{% url 'home' %}">Back to role selection</a></p>
+    </main>
+  </body>
+</html>

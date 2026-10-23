@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if listing %}Edit{% else %}Add{% endif %} listing | Labim House Rentals</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      main { max-width: 760px; margin: 4vh auto; padding: 28px; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
+      label { display: block; margin-top: 14px; font-weight: 600; }
+      input, select, textarea { box-sizing: border-box; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #bdcbd4; border-radius: 6px; }
+      input[type=checkbox] { width: auto; }
+      button { margin: 18px 8px 0 0; padding: 10px 14px; border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 600; cursor: pointer; }
+      button.secondary { background: #657785; }
+      a { color: #17607a; }
+      .errors { color: #9a2f25; }
+      .photo { padding: 12px 0; border-bottom: 1px solid #e7edf1; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{% if listing %}Edit{% else %}Add{% endif %} {% if profile.owner_type == "home" %}house{% else %}land/property{% endif %} listing</h1>
+      <p>Save a draft or submit it to Haidware for review. Only Haidware can publish a listing.</p>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for error in form.non_field_errors %}<div class="errors">{{ error }}</div>{% endfor %}
+        {% for field in form %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}<div class="errors">{{ error }}</div>{% endfor %}
+        {% endfor %}
+        <h2>Photos</h2>
+        {{ formset.management_form }}
+        {% for photo_form in formset %}
+          <div class="photo">
+            {% for hidden in photo_form.hidden_fields %}{{ hidden }}{% endfor %}
+            {% for field in photo_form.visible_fields %}
+              <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+              {{ field }}
+              {% for error in field.errors %}<div class="errors">{{ error }}</div>{% endfor %}
+            {% endfor %}
+          </div>
+        {% endfor %}
+        {% for error in formset.non_form_errors %}<div class="errors">{{ error }}</div>{% endfor %}
+        <button class="secondary" type="submit" name="action" value="draft">Save draft</button>
+        <button type="submit" name="action" value="submit">Submit for Haidware review</button>
+      </form>
+      <p><a href="{% url 'dashboard' %}">Return to dashboard</a></p>
+    </main>
+  </body>
+</html>

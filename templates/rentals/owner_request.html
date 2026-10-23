@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Request owner account | Labim House Rentals</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      main { max-width: 560px; margin: 5vh auto; padding: 28px; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
+      label { display: block; margin-top: 14px; font-weight: 600; }
+      input, select { box-sizing: border-box; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #bdcbd4; border-radius: 6px; }
+      button { margin-top: 20px; padding: 10px 16px; border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 600; cursor: pointer; }
+      a { color: #17607a; }
+      .errors { color: #9a2f25; }
+      .help { color: #657785; font-size: 14px; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Request an owner account</h1>
+      <p>Haidware will review your request before activating your account.</p>
+      <form method="post">
+        {% csrf_token %}
+        {% for field in form %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% if field.help_text %}<div class="help">{{ field.help_text|safe }}</div>{% endif %}
+          {% for error in field.errors %}<div class="errors">{{ error }}</div>{% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}<div class="errors">{{ error }}</div>{% endfor %}
+        <button type="submit">Send account request</button>
+      </form>
+      <p><a href="{% url 'home' %}">Back to role selection</a></p>
+    </main>
+  </body>
+</html>

@@ -23,10 +23,15 @@
   <body>
     <header><h1>Labim House Rentals</h1></header>
     <main>
-      <p class="intro">Manage rental listings and inspection requests.</p>
+      <p class="intro">Review owner accounts and control which property listings are published.</p>
+      {% if messages %}
+        {% for message in messages %}<p>{{ message }}</p>{% endfor %}
+      {% endif %}
       <div class="cards">
         <div class="card">All listings<span class="number">{{ listing_count }}</span></div>
         <div class="card">Published<span class="number">{{ published_count }}</span></div>
+        <div class="card">Awaiting listing review<span class="number">{{ pending_listing_count }}</span></div>
+        <div class="card">Owner requests<span class="number">{{ pending_owner_count }}</span></div>
         <div class="card">New inspections<span class="number">{{ new_inspection_count }}</span></div>
       </div>
       <section>
@@ -48,7 +53,17 @@
         {% else %}
           <p>No inspection requests yet.</p>
         {% endif %}
-        <p><a href="{% url 'admin:index' %}">Open administration</a></p>
+        <p>
+          <a href="{% url 'admin:rentals_ownerprofile_changelist' %}">Review owner account requests</a>
+          &middot;
+          <a href="{% url 'admin:rentals_rentallisting_changelist' %}">Review and publish listings</a>
+          &middot;
+          <a href="{% url 'admin:index' %}">Open administration</a>
+        </p>
+        <form method="post" action="{% url 'accounts:logout' %}">
+          {% csrf_token %}
+          <button type="submit">Sign out</button>
+        </form>
       </section>
     </main>
   </body>

@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Labim House Rentals</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      body { margin: 0; }
+      main { max-width: 900px; margin: 9vh auto; padding: 36px; border: 1px solid #dce5eb; border-radius: 16px; background: white; text-align: center; }
+      h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); }
+      .intro { color: #657785; }
+      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 28px 0; text-align: left; }
+      .card { padding: 20px; border: 1px solid #dce5eb; border-radius: 12px; }
+      .card h2 { margin: 0 0 8px; font-size: 18px; }
+      .card p { min-height: 44px; color: #657785; }
+      a { color: #17607a; font-weight: 600; }
+      .button { display: inline-block; padding: 10px 14px; border-radius: 6px; background: #17607a; color: white; text-decoration: none; }
+      .secondary { display: inline-block; margin: 14px; }
+      @media (max-width: 600px) { main { margin: 20px 12px; padding: 24px 16px; } }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>HAIDWARE HOUSE &amp; LAND PLATFORM</h1>
+      <p class="intro">Manage property listings with the right access for every role.</p>
+      <div class="cards">
+        <section class="card">
+          <h2>Haidware team</h2>
+          <p>Review owner requests, approve listings, and control publishing.</p>
+          <a class="button" href="{% url 'accounts:login' %}?next={% url 'dashboard' %}">Staff sign in</a>
+        </section>
+        <section class="card">
+          <h2>House or home owner</h2>
+          <p>Manage your home listings and submit them for review.</p>
+          <a href="{% url 'accounts:login' %}">Owner sign in</a><br>
+          <a class="secondary" href="{% url 'accounts:owner_request' %}?owner_type=home">Request an account</a>
+        </section>
+        <section class="card">
+          <h2>Land or property owner</h2>
+          <p>Submit land for rent or sale and track its review status.</p>
+          <a href="{% url 'accounts:login' %}">Owner sign in</a><br>
+          <a class="secondary" href="{% url 'accounts:owner_request' %}?owner_type=land">Request an account</a>
+        </section>
+      </div>
+    </main>
+  </body>
+</html>

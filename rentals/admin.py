@@ -1,10 +1,13 @@
 from django.contrib import admin
+from django.contrib import messages
+from django.db import transaction
 
 from .models import (
     InspectionRequest,
     ListingPhoto,
     RentalAdminProfile,
     RentalListing,
+    OwnerProfile,
 )
 
 
@@ -17,15 +20,27 @@ class ListingPhotoInline(admin.TabularInline):
 class RentalListingAdmin(admin.ModelAdmin):
     list_display = (
         "title",
+        "category",
+        "transaction_type",
+        "owner",
         "city",
         "state",
         "annual_rent",
+        "sale_price",
         "bedrooms",
         "status",
         "updated_at",
     )
-    list_filter = ("status", "state", "city", "property_type")
-    search_fields = ("title", "description", "address", "city", "state")
+    list_filter = ("status", "category", "transaction_type", "state", "city")
+    search_fields = (
+        "title",
+        "description",
+        "address",
+        "city",
+        "state",
+        "owner__username",
+        "owner__email",
+    )
     prepopulated_fields = {"slug": ("title",)}
     readonly_fields = ("created_at", "updated_at")
     inlines = (ListingPhotoInline,)
@@ -58,3 +73,46 @@ class InspectionRequestAdmin(admin.ModelAdmin):
 class RentalAdminProfileAdmin(admin.ModelAdmin):
     list_display = ("user", "phone")
     search_fields = ("user__username", "user__email", "phone")
+
+
+@admin.register(OwnerProfile)
+class OwnerProfileAdmin(admin.ModelAdmin):
+    list_display = ("user", "owner_type", "phone", "status", "created_at")
+    list_filter = ("owner_type", "status", "created_at")
+    search_fields = ("user__username", "user__email", "phone")
+    readonly_fields = ("user", "owner_type", "phone", "status", "created_at")
+    actions = ("approve_owner_accounts", "reject_owner_accounts")
+
+    @admin.action(description="Approve selected owner account requests")
+    def approve_owner_accounts(self, request, queryset):
+        approved = 0
+        with transaction.atomic():
+            for profile in queryset.select_related("user"):
+                profile.status = OwnerProfile.AccountStatus.APPROVED
+                profile.save(update_fields=("status",))
+                if not profile.user.is_active:
+                    profile.user.is_active = True
+                    profile.user.save(update_fields=("is_active",))
+                approved += 1
+        self.message_user(
+            request,
+            f"Approved {approved} owner account(s).",
+            messages.SUCCESS,
+        )
+
+    @admin.action(description="Reject selected owner account requests")
+    def reject_owner_accounts(self, request, queryset):
+        rejected = 0
+        with transaction.atomic():
+            for profile in queryset.select_related("user"):
+                profile.status = OwnerProfile.AccountStatus.REJECTED
+                profile.save(update_fields=("status",))
+                if profile.user.is_active:
+                    profile.user.is_active = False
+                    profile.user.save(update_fields=("is_active",))
+                rejected += 1
+        self.message_user(
+            request,
+            f"Rejected {rejected} owner account(s).",
+            messages.SUCCESS,
+        )

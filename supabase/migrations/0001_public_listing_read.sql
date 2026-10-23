@@ -4,6 +4,7 @@ ALTER TABLE public.rental_listings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_listing_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_inspection_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_admin_profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rental_owner_profiles ENABLE ROW LEVEL SECURITY;
 
 GRANT SELECT ON public.rental_listings TO anon, authenticated;
 GRANT SELECT ON public.rental_listing_photos TO anon, authenticated;
