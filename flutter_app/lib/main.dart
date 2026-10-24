@@ -353,7 +353,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
           SliverPersistentHeader(
             pinned: true,
             delegate: _FixedHeaderDelegate(
-              height: MediaQuery.sizeOf(context).width < 520 ? 134 : 76,
+              height: MediaQuery.sizeOf(context).width < 532 ? 100 : 116,
               child: _buildCategoryBar(),
             ),
           ),
@@ -476,44 +476,43 @@ class _RentalHomePageState extends State<RentalHomePage> {
     child: Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 850),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final compact = constraints.maxWidth < 520;
-            final tabs = [
-              (label: 'Hotels', path: 'https://rooms-uamy.onrender.com/'),
-              (
+        child: Row(
+          children: [
+            Expanded(
+              child: _RoomsCategoryTab(
+                label: 'Hotels',
+                icon: Icons.bed_outlined,
+                onTap: () => _openExternal('https://rooms-uamy.onrender.com/'),
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _RoomsCategoryTab(
                 label: 'Apartment',
-                path: 'https://rooms-uamy.onrender.com/apartment',
+                icon: Icons.apartment_outlined,
+                onTap: () =>
+                    _openExternal('https://rooms-uamy.onrender.com/apartment'),
               ),
-              (label: 'Homes', path: ''),
-              (
+            ),
+            const SizedBox(width: 8),
+            const Expanded(
+              child: _RoomsCategoryTab(
+                label: 'Homes',
+                icon: Icons.home_outlined,
+                selected: true,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: _RoomsCategoryTab(
                 label: 'Land/Properties',
-                path: 'https://rooms-uamy.onrender.com/land-properties',
+                icon: Icons.map_outlined,
+                onTap: () => _openExternal(
+                  'https://rooms-uamy.onrender.com/land-properties',
+                ),
               ),
-            ];
-            final tabWidth = compact
-                ? (constraints.maxWidth - 10) / 2
-                : (constraints.maxWidth - 30) / 4;
-            return Wrap(
-              alignment: WrapAlignment.center,
-              spacing: 10,
-              runSpacing: 10,
-              children: [
-                for (final tab in tabs)
-                  SizedBox(
-                    width: tabWidth,
-                    child: _RoomsCategoryTab(
-                      label: tab.label,
-                      selected: tab.label == 'Homes',
-                      compact: compact,
-                      onTap: tab.path.isEmpty
-                          ? null
-                          : () => _openExternal(tab.path),
-                    ),
-                  ),
-              ],
-            );
-          },
+            ),
+          ],
         ),
       ),
     ),
@@ -851,46 +850,64 @@ class _RentalHomePageState extends State<RentalHomePage> {
 class _RoomsCategoryTab extends StatelessWidget {
   const _RoomsCategoryTab({
     required this.label,
+    required this.icon,
     this.selected = false,
-    required this.compact,
     this.onTap,
   });
 
   final String label;
+  final IconData icon;
   final bool selected;
-  final bool compact;
   final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) => Semantics(
     button: onTap != null,
     selected: selected,
-    child: Material(
-      color: selected ? const Color(0xFF1B6578) : const Color(0xFFF1F6F6),
-      borderRadius: BorderRadius.circular(compact ? 14 : 18),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          height: 48,
-          child: Center(
-            child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
-              child: Text(
-                label,
-                textAlign: TextAlign.center,
-                maxLines: 2,
-                style: TextStyle(
-                  color: selected ? Colors.white : const Color(0xFF485B60),
-                  fontSize: compact ? 16 : 14,
-                  height: 1.1,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 120;
+        return Material(
+          color: selected ? const Color(0xFF1B6578) : const Color(0xFFF1F6F6),
+          borderRadius: BorderRadius.circular(compact ? 14 : 18),
+          clipBehavior: Clip.antiAlias,
+          child: InkWell(
+            onTap: onTap,
+            child: SizedBox(
+              height: compact ? 72 : 88,
+              child: Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 2, vertical: 8),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(
+                      icon,
+                      size: compact ? 19 : 23,
+                      color: selected ? Colors.white : const Color(0xFF485B60),
+                    ),
+                    const SizedBox(height: 5),
+                    Text(
+                      label,
+                      textAlign: TextAlign.center,
+                      maxLines: 2,
+                      style: TextStyle(
+                        color: selected
+                            ? Colors.white
+                            : const Color(0xFF485B60),
+                        fontSize: compact ? 10 : 14,
+                        height: 1.1,
+                        fontWeight: selected
+                            ? FontWeight.w600
+                            : FontWeight.w500,
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     ),
   );
 }

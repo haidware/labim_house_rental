@@ -27,6 +27,14 @@ void main() {
       expect(find.text('Apartment'), findsOneWidget);
       expect(find.text('Homes'), findsOneWidget);
       expect(find.text('Land/Properties'), findsOneWidget);
+      expect(find.byIcon(Icons.bed_outlined), findsWidgets);
+      expect(find.byIcon(Icons.apartment_outlined), findsWidgets);
+      expect(find.byIcon(Icons.home_outlined), findsWidgets);
+      expect(find.byIcon(Icons.map_outlined), findsWidgets);
+      expect(
+        tester.getTopLeft(find.byIcon(Icons.bed_outlined).last).dy,
+        tester.getTopLeft(find.byIcon(Icons.home_outlined).last).dy,
+      );
       expect(find.text('Find your next home'), findsOneWidget);
       await tester.scrollUntilVisible(
         find.text('Verified family home'),
