@@ -2,16 +2,111 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.db import transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
+from django.views.decorators.http import require_POST
 
-from .forms import ListingPhotoFormSet, OwnerAccountRequestForm, OwnerListingForm
+from .forms import (
+    ListingPhotoFormSet,
+    OwnerAccountRequestForm,
+    OwnerListingForm,
+    PublicInspectionRequestForm,
+)
 from .models import InspectionRequest, OwnerProfile, RentalListing
 
 
 def home(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
-    return render(request, "rentals/home.html")
+    return _render_public_home(request)
+
+
+def _render_public_home(
+    request,
+    *,
+    inspection_form=None,
+    inspection_listing=None,
+):
+    published_listings = RentalListing.objects.filter(
+        category=RentalListing.Category.HOME,
+        transaction_type=RentalListing.TransactionType.RENT,
+        status=RentalListing.PublicationStatus.PUBLISHED,
+        annual_rent__isnull=False,
+    )
+    cities = published_listings.order_by("city").values_list(
+        "city", flat=True
+    ).distinct()
+    listings = published_listings.prefetch_related("photos")
+
+    location = request.GET.get("location", "").strip()
+    city = request.GET.get("city", "").strip()
+    budget = request.GET.get("budget", "").strip()
+    budget_options = {"30000", "50000", "100000", "250000", "500000"}
+
+    if location:
+        listings = listings.filter(
+            Q(address__icontains=location)
+            | Q(city__icontains=location)
+            | Q(state__icontains=location)
+        )
+    if city:
+        listings = listings.filter(city__iexact=city)
+    if budget in budget_options:
+        listings = listings.filter(annual_rent__lte=int(budget) * 12)
+    else:
+        budget = ""
+
+    listings = list(listings)
+    for listing in listings:
+        listing.monthly_rent = (listing.annual_rent + 11) // 12
+        listing.primary_photo = next(iter(listing.photos.all()), None)
+
+    return render(
+        request,
+        "rentals/home.html",
+        {
+            "listings": listings,
+            "listing_count": len(listings),
+            "cities": cities,
+            "location_filter": location,
+            "city_filter": city,
+            "budget_filter": budget,
+            "inspection_form": (
+                inspection_form
+                if inspection_form is not None
+                else PublicInspectionRequestForm()
+            ),
+            "inspection_listing": inspection_listing,
+        },
+    )
+
+
+@require_POST
+def public_inspection_request(request, slug):
+    listing = get_object_or_404(
+        RentalListing,
+        slug=slug,
+        category=RentalListing.Category.HOME,
+        transaction_type=RentalListing.TransactionType.RENT,
+        status=RentalListing.PublicationStatus.PUBLISHED,
+    )
+    form = PublicInspectionRequestForm(request.POST)
+    if form.is_valid():
+        inspection = form.save(commit=False)
+        inspection.listing = listing
+        inspection.save()
+        messages.success(
+            request,
+            "Your viewing request has been sent to Rooms. Our team will contact you.",
+        )
+        return redirect(f"{reverse('home')}#listings")
+
+    return _render_public_home(
+        request,
+        inspection_form=form,
+        inspection_listing=listing,
+    )
 
 
 @login_required

@@ -3,7 +3,7 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.forms import inlineformset_factory
 
-from .models import ListingPhoto, OwnerProfile, RentalListing
+from .models import InspectionRequest, ListingPhoto, OwnerProfile, RentalListing
 
 
 class OwnerAccountRequestForm(UserCreationForm):
@@ -72,6 +72,31 @@ class OwnerListingForm(forms.ModelForm):
                 self.add_error("sale_price", "Enter the sale price.")
             cleaned_data["annual_rent"] = None
         return cleaned_data
+
+
+class PublicInspectionRequestForm(forms.ModelForm):
+    class Meta:
+        model = InspectionRequest
+        fields = (
+            "guest_name",
+            "email",
+            "phone",
+            "preferred_date",
+            "message",
+        )
+        labels = {
+            "guest_name": "Full name",
+            "email": "Email address",
+            "phone": "Phone / WhatsApp",
+            "preferred_date": "Preferred viewing date",
+            "message": "Message",
+        }
+        widgets = {
+            "preferred_date": forms.DateInput(attrs={"type": "date"}),
+            "message": forms.Textarea(
+                attrs={"rows": 3, "placeholder": "Anything else Rooms should know?"}
+            ),
+        }
 
 
 ListingPhotoFormSet = inlineformset_factory(

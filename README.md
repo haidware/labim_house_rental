@@ -1,15 +1,15 @@
 # Labim House Rental Admin
 
-Standalone Django project for managing house rental listings, property photos,
-and inspection requests. It provides separate house-owner and land/property-owner
-dashboards, plus a Haidware staff dashboard for account and listing approval.
-The public rental page at
-`https://rooms-uamy.onrender.com/rental` remains a separate project and will be
-connected to this project's public listing data in a later phase.
+Standalone Django project for the Rooms house-rental marketplace and its listing
+administration. It serves the public home-rental page, owner account requests,
+viewing requests, owner dashboards, and Haidware staff tools for account and
+listing approval.
 
 ## Features
 
-- Public role-selection page for Haidware staff, house owners, and land/property owners.
+- Public Rooms marketplace showing only Haidware-reviewed homes available for rent.
+- Home search by location, city, and maximum monthly rent.
+- Public viewing requests saved for staff follow-up.
 - Owner account requests remain inactive until Haidware approves them in Django admin.
 - Owners manage only their own listings and can save drafts or submit listings for review.
 - Haidware staff control publication; owners cannot publish listings themselves.
@@ -21,9 +21,6 @@ connected to this project's public listing data in a later phase.
   private staff notes.
 - Local SQLite for development and PostgreSQL configuration for a dedicated
   Supabase project.
-
-There is no public listing API in this first phase. Inspection requests are
-managed in the admin and are not yet submitted by the public rental page.
 
 ## Run locally
 
@@ -37,31 +34,34 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000/ to choose a role. Haidware staff sign in with an
-existing staff account; owners can request an account and wait for approval.
-Staff manage account requests and publish reviewed listings in Django admin.
-Approved owners can manage their own drafts and review submissions on their
-role-specific dashboard.
+Open http://127.0.0.1:8000/ to browse published homes or request a viewing.
+Owners can apply for an account and wait for Haidware approval. Staff manage
+account requests, publish reviewed listings, and follow up on viewing requests
+in Django admin. Approved owners can manage their own drafts and review
+submissions on their role-specific dashboard.
 
 ## Supabase setup
 
-Create a separate Supabase project for this rental admin. In its Database
-settings, copy the PostgreSQL pooler connection URI into the private
-`DATABASE_URL` environment variable and append `sslmode=require` if it is not
-already present. For example:
+Use the dedicated rental Supabase project, separate from the hotel-booking
+database. The Supabase project URL (for example,
+`https://<project-ref>.supabase.co`) is not the PostgreSQL connection URI Django
+needs. In the project's Database settings, copy the PostgreSQL pooler connection
+URI into the private `DATABASE_URL` environment variable and append
+`sslmode=require` if it is not already present. For example:
 
 ```text
 postgresql://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres?sslmode=require
 ```
 
 Never commit `.env` or expose database credentials in public frontend code.
-Then run `python manage.py migrate`, apply
-`supabase/migrations/0001_public_listing_read.sql` in the Supabase SQL Editor,
-and create the first staff account with `python manage.py createsuperuser`.
+Then run `python manage.py migrate` and create the first staff account with
+`python manage.py createsuperuser`.
 Django migrations create the listing, photo, inspection-request, staff-profile,
 and owner-profile tables in this project's database. The SQL migration enables
-read-only public access to published listings and their photos; inspection
-requests, staff profiles, and owner profiles remain private.
+read-only public access to published listings and their photos for a separate
+public Supabase client, if one is needed. The current Rooms page reads listings
+and submits viewing requests through Django; inspection requests, staff
+profiles, and owner profiles remain private.
 
 The project does not connect to the existing hotel Supabase. Configure a
 separate Supabase project and credentials for rental data.

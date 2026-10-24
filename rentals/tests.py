@@ -37,13 +37,109 @@ class RentalAdminTests(TestCase):
         )
         return user
 
-    def test_home_page_offers_separate_owner_roles(self):
+    def test_home_page_shows_published_rentals_and_owner_application(self):
         response = self.client.get(reverse("home"))
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "House or home owner")
-        self.assertContains(response, "Land or property owner")
-        self.assertContains(response, "Haidware team")
+        self.assertContains(response, "Homes available for rent")
+        self.assertContains(response, "Bright family home")
+        self.assertContains(response, "List a property")
+        self.assertContains(response, "Owners request an account")
+
+    def test_home_page_only_shows_published_homes_for_rent(self):
+        RentalListing.objects.create(
+            title="Pending home",
+            description="Not public yet.",
+            city="Abuja",
+            state="FCT",
+            annual_rent=1_200_000,
+            status=RentalListing.PublicationStatus.PENDING_REVIEW,
+        )
+        RentalListing.objects.create(
+            title="Published land listing",
+            description="Land is not a home rental.",
+            city="Abuja",
+            state="FCT",
+            category=RentalListing.Category.LAND,
+            annual_rent=1_200_000,
+            status=RentalListing.PublicationStatus.PUBLISHED,
+        )
+        RentalListing.objects.create(
+            title="Published house for sale",
+            description="Sale listings are not rentals.",
+            city="Abuja",
+            state="FCT",
+            transaction_type=RentalListing.TransactionType.SALE,
+            annual_rent=1_200_000,
+            status=RentalListing.PublicationStatus.PUBLISHED,
+        )
+
+        response = self.client.get(reverse("home"))
+
+        self.assertContains(response, "Bright family home")
+        self.assertNotContains(response, "Pending home")
+        self.assertNotContains(response, "Published land listing")
+        self.assertNotContains(response, "Published house for sale")
+
+    def test_home_page_filters_by_location_city_and_monthly_budget(self):
+        RentalListing.objects.create(
+            title="Lekki apartment",
+            description="Another published home.",
+            city="Lagos",
+            state="Lagos",
+            address="Lekki Phase 1",
+            annual_rent=1_200_000,
+            status=RentalListing.PublicationStatus.PUBLISHED,
+        )
+
+        response = self.client.get(
+            reverse("home"),
+            {"location": "Lekki", "city": "Lagos", "budget": "100000"},
+        )
+
+        self.assertContains(response, "Lekki apartment")
+        self.assertNotContains(response, "Bright family home")
+        self.assertEqual(response.context["listing_count"], 1)
+
+    def test_public_inspection_request_is_saved_for_published_listing(self):
+        response = self.client.post(
+            reverse("public_inspection_request", args=(self.listing.slug,)),
+            {
+                "guest_name": "Renter Example",
+                "email": "renter@example.com",
+                "phone": "+2348012345678",
+                "preferred_date": "2030-06-15",
+                "message": "Please contact me about a viewing.",
+            },
+        )
+
+        self.assertRedirects(response, f"{reverse('home')}#listings")
+        inspection = InspectionRequest.objects.get()
+        self.assertEqual(inspection.listing, self.listing)
+        self.assertEqual(inspection.guest_name, "Renter Example")
+        self.assertEqual(inspection.status, InspectionRequest.Status.NEW)
+
+    def test_public_inspection_request_rejects_unpublished_listing(self):
+        unpublished = RentalListing.objects.create(
+            title="Unpublished home",
+            description="Not ready for renters.",
+            city="Abuja",
+            state="FCT",
+            annual_rent=1_200_000,
+            status=RentalListing.PublicationStatus.PENDING_REVIEW,
+        )
+
+        response = self.client.post(
+            reverse("public_inspection_request", args=(unpublished.slug,)),
+            {
+                "guest_name": "Renter Example",
+                "email": "renter@example.com",
+                "phone": "+2348012345678",
+            },
+        )
+
+        self.assertEqual(response.status_code, 404)
+        self.assertFalse(InspectionRequest.objects.exists())
 
     def test_dashboard_requires_login(self):
         response = self.client.get(reverse("dashboard"))
@@ -91,6 +187,16 @@ class RentalAdminTests(TestCase):
             user.owner_profile.status,
             OwnerProfile.AccountStatus.PENDING,
         )
+        self.assertContains(response, "Request received")
+
+    def test_owner_account_request_page_uses_rooms_branding(self):
+        response = self.client.get(
+            reverse("accounts:owner_request"),
+            {"owner_type": OwnerProfile.OwnerType.HOME},
+        )
+
+        self.assertContains(response, "Rooms")
+        self.assertContains(response, "Apply to list a property")
 
     def test_staff_can_approve_owner_account_request(self):
         user = get_user_model().objects.create_user(

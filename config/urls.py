@@ -23,6 +23,11 @@ account_patterns = ([
 
 urlpatterns = [
     path("", views.home, name="home"),
+    path(
+        "homes/<slug:slug>/inspection/",
+        views.public_inspection_request,
+        name="public_inspection_request",
+    ),
     path("accounts/", include(account_patterns, namespace="accounts")),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("owner/house/", views.home_owner_dashboard, name="home_owner_dashboard"),

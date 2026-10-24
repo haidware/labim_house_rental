@@ -3,34 +3,87 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Request owner account | Labim House Rentals</title>
+    <meta name="description" content="Apply to list a home or property with Rooms.">
+    <title>Apply to list a property | Rooms</title>
     <style>
-      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
-      main { max-width: 560px; margin: 5vh auto; padding: 28px; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
-      label { display: block; margin-top: 14px; font-weight: 600; }
-      input, select { box-sizing: border-box; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #bdcbd4; border-radius: 6px; }
-      button { margin-top: 20px; padding: 10px 16px; border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 600; cursor: pointer; }
-      a { color: #17607a; }
-      .errors { color: #9a2f25; }
-      .help { color: #657785; font-size: 14px; }
+      :root { color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif; color: #153d4c; background: #f7f9f9; --teal: #17607a; --navy: #153d4c; --muted: #64777b; --line: #dfe8e9; --yellow: #ffc629; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      a { color: inherit; text-decoration: none; }
+      .topbar { background: var(--navy); color: white; }
+      .nav { display: flex; width: min(1160px, calc(100% - 40px)); min-height: 74px; align-items: center; margin: 0 auto; }
+      .brand { display: inline-flex; align-items: center; gap: 11px; font-size: 28px; font-weight: 800; letter-spacing: -1px; }
+      .brand-mark { display: grid; width: 40px; height: 40px; place-items: center; border-radius: 11px; background: var(--yellow); color: #082a55; }
+      .brand-mark svg { width: 27px; height: 27px; }
+      .brand-dot { color: #e53950; }
+      .back-link { margin-left: auto; color: #d6e3e5; font-size: 14px; font-weight: 650; }
+      main { width: min(640px, calc(100% - 32px)); margin: 38px auto 56px; }
+      .card { padding: clamp(22px, 5vw, 38px); border: 1px solid var(--line); border-radius: 20px; background: white; box-shadow: 0 14px 40px #153d4c0a; }
+      .eyebrow { margin: 0 0 10px; color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+      h1 { margin: 0; color: var(--navy); font-size: clamp(29px, 5vw, 38px); line-height: 1.12; letter-spacing: -1px; }
+      .intro { margin: 12px 0 20px; color: var(--muted); font-size: 15px; line-height: 1.55; }
+      .approval-note { margin: 0 0 22px; padding: 13px 15px; border-radius: 12px; background: #f0f6f6; color: #435f65; font-size: 13px; line-height: 1.5; }
+      .approval-note strong { color: var(--navy); }
+      .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; }
+      .field { min-width: 0; }
+      .field.full { grid-column: 1 / -1; }
+      label { display: block; margin-bottom: 7px; color: #53686c; font-size: 13px; font-weight: 750; }
+      input, select { width: 100%; min-height: 44px; padding: 11px 12px; border: 1px solid #d5e0e1; border-radius: 10px; outline: none; background: white; color: #203e45; font: inherit; }
+      input:focus, select:focus { border-color: var(--teal); box-shadow: 0 0 0 3px #17607a1c; }
+      .help { margin-top: 7px; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .help ul { margin: 6px 0 0; padding-left: 19px; }
+      .errors { margin: 6px 0 0; color: #a32f2f; font-size: 12px; }
+      .form-errors { margin: 0 0 14px; color: #a32f2f; font-size: 13px; }
+      .button { display: inline-flex; min-height: 46px; align-items: center; justify-content: center; margin-top: 21px; padding: 11px 17px; border: 0; border-radius: 11px; background: var(--yellow); color: var(--navy); font: inherit; font-weight: 750; cursor: pointer; }
+      .button:hover { filter: brightness(.97); }
+      @media (max-width: 580px) {
+        .nav { width: calc(100% - 28px); min-height: 64px; }
+        .brand { gap: 8px; font-size: 24px; }
+        .brand-mark { width: 35px; height: 35px; border-radius: 9px; }
+        .brand-mark svg { width: 24px; height: 24px; }
+        .back-link { font-size: 12px; }
+        main { margin-top: 20px; }
+        .fields { grid-template-columns: 1fr; gap: 13px; }
+        .button { width: 100%; }
+      }
     </style>
   </head>
   <body>
+    <header class="topbar">
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
+            </svg>
+          </span>
+          <span>Rooms<span class="brand-dot">.</span></span>
+        </a>
+        <a class="back-link" href="{% url 'home' %}">← Back to homes</a>
+      </nav>
+    </header>
     <main>
-      <h1>Request an owner account</h1>
-      <p>Haidware will review your request before activating your account.</p>
-      <form method="post">
-        {% csrf_token %}
-        {% for field in form %}
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.help_text %}<div class="help">{{ field.help_text|safe }}</div>{% endif %}
-          {% for error in field.errors %}<div class="errors">{{ error }}</div>{% endfor %}
-        {% endfor %}
-        {% for error in form.non_field_errors %}<div class="errors">{{ error }}</div>{% endfor %}
-        <button type="submit">Send account request</button>
-      </form>
-      <p><a href="{% url 'home' %}">Back to role selection</a></p>
+      <section class="card">
+        <p class="eyebrow">Owner application</p>
+        <h1>Apply to list a property</h1>
+        <p class="intro">Create an owner account to get started. The Rooms team will review your application before you can sign in or submit a listing.</p>
+        <p class="approval-note"><strong>What happens next?</strong> Haidware reviews your account request. After approval, you can submit your property details for a separate listing review.</p>
+        <form method="post">
+          {% csrf_token %}
+          {% for error in form.non_field_errors %}<p class="form-errors">{{ error }}</p>{% endfor %}
+          <div class="fields">
+            {% for field in form %}
+              <div class="field{% if field.name == 'username' or field.name == 'password1' or field.name == 'password2' %} full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% if field.help_text %}<div class="help">{{ field.help_text|safe }}</div>{% endif %}
+                {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+              </div>
+            {% endfor %}
+          </div>
+          <button class="button" type="submit">Send account request <span aria-hidden="true">→</span></button>
+        </form>
+      </section>
     </main>
   </body>
 </html>

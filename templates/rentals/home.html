@@ -1,48 +1,386 @@
+{% load humanize %}
 <!doctype html>
 <html lang="en">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Labim House Rentals</title>
+    <meta name="description" content="Find a home for rent across Nigeria. Browse Haidware-reviewed listings and request a viewing with Rooms.">
+    <title>Rooms | Homes for rent</title>
     <style>
-      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      :root {
+        color-scheme: light;
+        font-family: Inter, "Segoe UI", Arial, sans-serif;
+        color: #153d4c;
+        background: #f7f9f9;
+        font-synthesis: none;
+        text-rendering: optimizeLegibility;
+        --teal: #17607a;
+        --navy: #153d4c;
+        --muted: #64777b;
+        --line: #dfe8e9;
+        --pale: #f0f6f6;
+        --yellow: #ffc629;
+      }
+      * { box-sizing: border-box; }
       body { margin: 0; }
-      main { max-width: 900px; margin: 9vh auto; padding: 36px; border: 1px solid #dce5eb; border-radius: 16px; background: white; text-align: center; }
-      h1 { margin: 0; font-size: clamp(24px, 4vw, 34px); }
-      .intro { color: #657785; }
-      .cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 16px; margin: 28px 0; text-align: left; }
-      .card { padding: 20px; border: 1px solid #dce5eb; border-radius: 12px; }
-      .card h2 { margin: 0 0 8px; font-size: 18px; }
-      .card p { min-height: 44px; color: #657785; }
-      a { color: #17607a; font-weight: 600; }
-      .button { display: inline-block; padding: 10px 14px; border-radius: 6px; background: #17607a; color: white; text-decoration: none; }
-      .secondary { display: inline-block; margin: 14px; }
-      @media (max-width: 600px) { main { margin: 20px 12px; padding: 24px 16px; } }
+      a { color: inherit; text-decoration: none; }
+      button, input, select, textarea { font: inherit; }
+      .wrap { width: min(1100px, calc(100% - 40px)); margin: 0 auto; }
+      .topbar { background: #173f4c; color: white; }
+      .nav { min-height: 108px; display: flex; align-items: center; gap: 26px; }
+      .brand { display: inline-flex; align-items: center; gap: 15px; font-size: 40px; font-weight: 800; letter-spacing: -1.8px; white-space: nowrap; }
+      .brand-mark { width: 60px; height: 60px; display: grid; place-items: center; background: var(--yellow); color: #082a55; border-radius: 16px; }
+      .brand-mark svg { width: 40px; height: 40px; }
+      .brand-dot { color: #e53950; }
+      .nav-actions { display: flex; align-items: center; gap: 17px; margin-left: auto; }
+      .owner-login { display: inline-flex; align-items: center; gap: 8px; color: #d6e3e5; font-size: 13px; font-weight: 650; white-space: nowrap; }
+      .owner-login svg { width: 20px; height: 20px; }
+      .category-bar { padding: 16px 14px; border-bottom: 1px solid #dfe5e6; background: white; }
+      .category-nav { display: flex; flex-wrap: wrap; justify-content: center; gap: 12px; }
+      .category-tab { display: inline-flex; min-width: 135px; min-height: 48px; align-items: center; justify-content: center; padding: 9px 20px; border: 1px solid #e1e5e6; border-radius: 17px; color: #52656a; font-size: 17px; font-weight: 550; box-shadow: 0 1px 2px #153d4c08; }
+      .category-tab.active { border-color: var(--teal); background: var(--teal); color: white; }
+      .category-tab.action { font-weight: 650; }
+      .button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 11px 17px; border: 0; border-radius: 11px; background: var(--yellow); color: #153d4c; font-weight: 750; cursor: pointer; }
+      .button:hover { filter: brightness(.97); }
+      .button-teal { background: var(--teal); color: white; }
+      .hero { padding: 45px 0 25px; background: #f8fafb; }
+      .hero-card { padding: 0; }
+      .hero-grid { display: block; }
+      .eyebrow { display: inline-flex; align-items: center; gap: 7px; margin-bottom: 10px; color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+      .eyebrow-dot { width: 8px; height: 8px; border-radius: 50%; background: #2d9b68; }
+      h1 { max-width: 680px; margin: 0; color: var(--navy); font-size: clamp(36px, 4.5vw, 48px); line-height: 1.1; letter-spacing: -1.8px; }
+      h1 span { color: var(--teal); }
+      .intro { max-width: 680px; margin: 12px 0 24px; color: #667477; font-size: 18px; line-height: 1.55; }
+      .owner-banner { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 17px 19px; border-radius: 15px; background: var(--navy); color: white; }
+      .owner-banner h2 { margin: 0 0 5px; font-size: 17px; }
+      .owner-banner p { margin: 0; color: #d7e4e6; font-size: 13px; line-height: 1.45; }
+      .owner-banner .button { flex: 0 0 auto; }
+      .search-panel { display: grid; grid-template-columns: 1.2fr 1fr 1fr auto; gap: 14px; align-items: end; margin-top: 30px; padding: 24px; border: 1px solid #dfe5e6; border-radius: 22px; background: white; box-shadow: 0 8px 28px #153d4c0a; }
+      .field label { display: block; margin: 0 0 7px 12px; color: #626f72; font-size: 12px; font-weight: 650; letter-spacing: .04em; text-transform: uppercase; }
+      .field input, .field select, .field textarea { width: 100%; min-width: 0; min-height: 60px; padding: 14px 16px; border: 1px solid #d5dfe0; border-radius: 17px; outline: none; background: white; color: #203e45; font-size: 17px; }
+      .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px #17607a1c; }
+      .search-button { min-height: 60px; padding: 13px 20px; border-radius: 16px; white-space: nowrap; }
+      .content { padding: 28px 0 45px; }
+      .section-head { display: flex; align-items: end; justify-content: space-between; gap: 16px; margin: 3px 0 17px; }
+      .section-head h2 { margin: 0 0 5px; color: var(--navy); font-size: 25px; letter-spacing: -.5px; }
+      .section-head p { margin: 0; color: var(--muted); font-size: 14px; }
+      .result-count { flex: 0 0 auto; padding: 7px 11px; border-radius: 20px; background: #eaf3f4; color: var(--teal); font-size: 12px; font-weight: 750; }
+      .messages { display: grid; gap: 9px; margin: 0 0 15px; }
+      .message { padding: 13px 15px; border: 1px solid #b7ddc7; border-radius: 11px; background: #eff9f2; color: #21613a; font-size: 14px; }
+      .listing-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 17px; }
+      .listing-card { display: flex; min-width: 0; flex-direction: column; overflow: hidden; border: 1px solid var(--line); border-radius: 16px; background: white; box-shadow: 0 5px 18px #153d4c09; }
+      .listing-photo { position: relative; height: 190px; overflow: hidden; background: #e8f0f0; }
+      .listing-photo img { width: 100%; height: 100%; object-fit: cover; }
+      .photo-placeholder { display: grid; width: 100%; height: 100%; place-items: center; color: #81a0a4; }
+      .photo-placeholder svg { width: 62px; height: 62px; }
+      .status-pill { position: absolute; top: 12px; left: 12px; padding: 6px 10px; border: 1px solid #fff9; border-radius: 20px; background: #ffffffed; color: #285d4b; font-size: 11px; font-weight: 800; }
+      .listing-body { display: flex; flex: 1; flex-direction: column; padding: 15px; }
+      .price { margin: 0 0 7px; color: var(--navy); font-size: 22px; font-weight: 800; letter-spacing: -.4px; }
+      .price small { color: var(--muted); font-size: 12px; font-weight: 550; letter-spacing: 0; }
+      .listing-body h3 { margin: 0 0 6px; color: #193d46; font-size: 17px; }
+      .location { display: flex; align-items: start; gap: 5px; margin-bottom: 12px; color: var(--muted); font-size: 13px; line-height: 1.4; }
+      .location svg { flex: 0 0 auto; width: 16px; height: 16px; }
+      .specs { display: flex; flex-wrap: wrap; gap: 8px 13px; margin-top: auto; padding-top: 11px; border-top: 1px solid #edf1f1; color: #53696e; font-size: 12px; }
+      .listing-foot { padding: 0 15px 15px; }
+      .listing-foot .button { width: 100%; min-height: 41px; border: 1px solid #cbdcde; background: white; color: var(--teal); }
+      .listing-foot .button:hover { border-color: var(--teal); background: #f2f8f8; }
+      .empty-state { padding: 36px 20px; border: 1px dashed #bdd0d2; border-radius: 16px; background: white; text-align: center; }
+      .empty-state h3 { margin: 0 0 8px; font-size: 19px; }
+      .empty-state p { max-width: 470px; margin: 0 auto 16px; color: var(--muted); line-height: 1.5; }
+      .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+      .info-card { padding: 19px; border: 1px solid var(--line); border-radius: 15px; background: white; }
+      .info-card h2 { margin: 0 0 8px; color: var(--navy); font-size: 17px; }
+      .info-card p, .info-card li { color: var(--muted); font-size: 13px; line-height: 1.55; }
+      .info-card p { margin: 0; }
+      .info-card ol { margin: 0; padding-left: 20px; }
+      .info-card li + li { margin-top: 4px; }
+      .owner-links { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 13px; }
+      .owner-links a { color: var(--teal); font-size: 13px; font-weight: 750; }
+      footer { padding: 20px 0 25px; border-top: 1px solid var(--line); color: #718386; font-size: 12px; }
+      .modal { position: fixed; z-index: 10; inset: 0; display: none; overflow-y: auto; padding: 22px 12px; background: #0b252bcc; }
+      .modal.open { display: block; }
+      .dialog { width: min(610px, 100%); margin: 20px auto; padding: 23px; border: 1px solid #e3ebeb; border-radius: 18px; background: white; box-shadow: 0 24px 70px #071c2490; }
+      .dialog-head { display: flex; align-items: start; justify-content: space-between; gap: 14px; margin-bottom: 18px; }
+      .dialog-head h2 { margin: 0 0 5px; color: var(--navy); font-size: 22px; }
+      .dialog-head p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.5; }
+      .close-button { flex: 0 0 auto; width: 37px; height: 37px; border: 0; border-radius: 10px; background: var(--pale); color: var(--navy); font-size: 22px; cursor: pointer; }
+      .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; }
+      .form-field.full { grid-column: 1 / -1; }
+      .form-field textarea { min-height: 78px; resize: vertical; }
+      .errors { margin: 5px 0 0; color: #a32f2f; font-size: 12px; }
+      .form-note { margin: 13px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      .dialog .button { width: 100%; }
+      @media (max-width: 850px) {
+        .search-panel { grid-template-columns: 1fr 1fr; }
+        .listing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      }
+      @media (max-width: 620px) {
+        .wrap { width: min(100% - 28px, 500px); }
+        .nav { min-height: 98px; gap: 12px; }
+        .brand { gap: 12px; font-size: 36px; }
+        .brand-mark { width: 56px; height: 56px; border-radius: 15px; }
+        .brand-mark svg { width: 38px; height: 38px; }
+        .owner-login { font-size: 0; }
+        .owner-login svg { width: 22px; height: 22px; }
+        .category-bar { padding: 14px 12px; }
+        .category-nav { gap: 10px; }
+        .category-tab { min-width: min(42vw, 170px); min-height: 48px; padding: 8px 13px; font-size: 16px; }
+        .hero { padding: 48px 0 17px; }
+        h1 { font-size: clamp(34px, 9vw, 42px); letter-spacing: -1.2px; }
+        .intro { margin: 11px 0 19px; font-size: 16px; }
+        .search-panel { grid-template-columns: 1fr; gap: 15px; margin-top: 22px; padding: 25px 22px; border-radius: 22px; }
+        .field label { margin-left: 12px; font-size: 12px; }
+        .field input, .field select { min-height: 64px; padding: 14px 15px; font-size: 17px; }
+        .search-button { grid-column: auto; width: 100%; min-height: 56px; }
+        .content { padding: 20px 0 30px; }
+        .section-head { align-items: start; margin-bottom: 13px; }
+        .section-head h2 { font-size: 20px; }
+        .section-head p { max-width: 250px; font-size: 12px; line-height: 1.4; }
+        .result-count { padding: 6px 8px; font-size: 11px; }
+        .listing-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+        .listing-photo { height: 122px; }
+        .status-pill { top: 7px; left: 7px; padding: 5px 7px; font-size: 9px; }
+        .listing-body { padding: 10px; }
+        .price { font-size: 16px; }
+        .price small { font-size: 10px; }
+        .listing-body h3 { font-size: 13px; line-height: 1.3; }
+        .location { gap: 3px; margin-bottom: 9px; font-size: 10px; }
+        .location svg { width: 13px; height: 13px; }
+        .specs { gap: 5px 8px; padding-top: 8px; font-size: 9px; }
+        .listing-foot { padding: 0 9px 9px; }
+        .listing-foot .button { min-height: 36px; padding: 8px 5px; font-size: 11px; }
+        .info-grid { grid-template-columns: 1fr; gap: 10px; margin-top: 18px; }
+        .info-card { padding: 15px; }
+        .form-grid { grid-template-columns: 1fr; }
+        .form-field.full { grid-column: auto; }
+        .dialog { padding: 17px; }
+      }
     </style>
   </head>
   <body>
-    <main>
-      <h1>HAIDWARE HOUSE &amp; LAND PLATFORM</h1>
-      <p class="intro">Manage property listings with the right access for every role.</p>
-      <div class="cards">
-        <section class="card">
-          <h2>Haidware team</h2>
-          <p>Review owner requests, approve listings, and control publishing.</p>
-          <a class="button" href="{% url 'accounts:login' %}?next={% url 'dashboard' %}">Staff sign in</a>
-        </section>
-        <section class="card">
-          <h2>House or home owner</h2>
-          <p>Manage your home listings and submit them for review.</p>
-          <a href="{% url 'accounts:login' %}">Owner sign in</a><br>
-          <a class="secondary" href="{% url 'accounts:owner_request' %}?owner_type=home">Request an account</a>
-        </section>
-        <section class="card">
-          <h2>Land or property owner</h2>
-          <p>Submit land for rent or sale and track its review status.</p>
-          <a href="{% url 'accounts:login' %}">Owner sign in</a><br>
-          <a class="secondary" href="{% url 'accounts:owner_request' %}?owner_type=land">Request an account</a>
-        </section>
+    <header class="topbar">
+      <div class="wrap nav">
+        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
+            </svg>
+          </span>
+          <span>Rooms<span class="brand-dot">.</span></span>
+        </a>
+        <div class="nav-actions">
+          <a class="owner-login" href="{% url 'accounts:login' %}" aria-label="Owner sign in" title="Owner sign in">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+              <rect x="5" y="10" width="14" height="11" rx="2"></rect><path d="M8 10V7a4 4 0 0 1 8 0v3"></path><path d="M12 14v3"></path>
+            </svg>
+            Owner sign in
+          </a>
+        </div>
       </div>
+    </header>
+    <div class="category-bar">
+      <nav class="category-nav" aria-label="Property categories">
+        <a class="category-tab active" href="{% url 'home' %}#listings" aria-current="page">Homes</a>
+        <a class="category-tab action" href="{% url 'accounts:owner_request' %}?owner_type=home">List a property</a>
+      </nav>
+    </div>
+
+    <main>
+      <section class="hero">
+        <div class="wrap">
+          <div class="hero-card">
+            <div class="hero-grid">
+              <div>
+                <h1>Find your next home</h1>
+                <p class="intro">Choose from homes available for rent, reviewed by Rooms.</p>
+              </div>
+            </div>
+
+            <form id="search" class="search-panel" method="get" action="{% url 'home' %}">
+              <div class="field">
+                <label for="location">Location / area</label>
+                <input id="location" name="location" value="{{ location_filter }}" placeholder="e.g. Lekki, Ibadan">
+              </div>
+              <div class="field">
+                <label for="city">City</label>
+                <select id="city" name="city">
+                  <option value="">Any city</option>
+                  {% for city in cities %}
+                    <option value="{{ city }}" {% if city_filter|lower == city|lower %}selected{% endif %}>{{ city }}</option>
+                  {% endfor %}
+                </select>
+              </div>
+              <div class="field">
+                <label for="budget">Maximum monthly rent</label>
+                <select id="budget" name="budget">
+                  <option value="">Any budget</option>
+                  <option value="30000" {% if budget_filter == "30000" %}selected{% endif %}>Up to ₦30,000</option>
+                  <option value="50000" {% if budget_filter == "50000" %}selected{% endif %}>Up to ₦50,000</option>
+                  <option value="100000" {% if budget_filter == "100000" %}selected{% endif %}>Up to ₦100,000</option>
+                  <option value="250000" {% if budget_filter == "250000" %}selected{% endif %}>Up to ₦250,000</option>
+                  <option value="500000" {% if budget_filter == "500000" %}selected{% endif %}>Up to ₦500,000</option>
+                </select>
+              </div>
+              <button class="button button-teal search-button" type="submit">Search homes <span aria-hidden="true">→</span></button>
+            </form>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap content" id="listings">
+        {% if messages %}
+          <div class="messages" role="status">
+            {% for message in messages %}<div class="message">{{ message }}</div>{% endfor %}
+          </div>
+        {% endif %}
+        <div class="section-head">
+          <div>
+            <h2>Homes available for rent</h2>
+            <p>Haidware-reviewed listings. Rent is shown as an approximate monthly equivalent.</p>
+          </div>
+          {% if listing_count %}<span class="result-count">{{ listing_count }} home{{ listing_count|pluralize }}</span>{% endif %}
+        </div>
+
+        {% if listings %}
+          <div class="listing-grid">
+            {% for listing in listings %}
+              <article class="listing-card">
+                <div class="listing-photo">
+                  {% if listing.primary_photo %}
+                    <img src="{{ listing.primary_photo.image.url }}" alt="{{ listing.primary_photo.caption|default:listing.title }}">
+                  {% else %}
+                    <div class="photo-placeholder" aria-hidden="true">
+                      <svg viewBox="0 0 48 48" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+                        <path d="m5 21 19-16 19 16"></path><path d="M10 19v24h28V19"></path><path d="M19 43V28h10v15"></path>
+                      </svg>
+                    </div>
+                  {% endif %}
+                  <span class="status-pill">Reviewed · For rent</span>
+                </div>
+                <div class="listing-body">
+                  <p class="price">₦{{ listing.monthly_rent|intcomma }} <small>/ approx. month</small></p>
+                  <h3>{{ listing.title }}</h3>
+                  <div class="location">
+                    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true">
+                      <path d="M16 8.4c0 4.2-6 9.1-6 9.1S4 12.6 4 8.4a6 6 0 1 1 12 0Z"></path><circle cx="10" cy="8" r="2"></circle>
+                    </svg>
+                    <span>{% if listing.address %}{{ listing.address }}, {% endif %}{{ listing.city }}, {{ listing.state }}</span>
+                  </div>
+                  <div class="specs">
+                    {% if listing.property_type %}<span>{{ listing.property_type }}</span>{% endif %}
+                    {% if listing.bedrooms %}<span>{{ listing.bedrooms }} bed{{ listing.bedrooms|pluralize }}</span>{% endif %}
+                    {% if listing.bathrooms %}<span>{{ listing.bathrooms }} bath{{ listing.bathrooms|pluralize }}</span>{% endif %}
+                  </div>
+                </div>
+                <div class="listing-foot">
+                  <button
+                    class="button"
+                    type="button"
+                    data-inspection-url="{% url 'public_inspection_request' listing.slug %}"
+                    data-listing-title="{{ listing.title }}"
+                    data-listing-location="{{ listing.city }}, {{ listing.state }}"
+                    onclick="openInspection(this)"
+                  >Request a viewing</button>
+                </div>
+              </article>
+            {% endfor %}
+          </div>
+        {% else %}
+          <div class="empty-state">
+            <h3>No reviewed homes match your search yet</h3>
+            <p>Try another location or budget. Only published properties are shown here; sample or unverified listings are never presented as available.</p>
+            <a class="button button-teal" href="{% url 'home' %}#search">Clear filters</a>
+          </div>
+        {% endif %}
+
+        <div class="info-grid" id="how-it-works">
+          <section class="info-card">
+            <h2>How Rooms works</h2>
+            <ol>
+              <li>Owners request an account and wait for Haidware approval.</li>
+              <li>Approved owners submit property listings for review.</li>
+              <li>Haidware checks each listing before it is published.</li>
+              <li>Renters request a viewing; the Rooms team follows up.</li>
+            </ol>
+          </section>
+          <section class="info-card">
+            <h2>Own a property?</h2>
+            <p>Start an owner account request. A request does not publish a property; listings are reviewed by Haidware first.</p>
+            <div class="owner-links">
+              <a href="{% url 'accounts:owner_request' %}?owner_type=home">List a home for rent →</a>
+              <a href="{% url 'accounts:owner_request' %}?owner_type=land">List land or property →</a>
+            </div>
+          </section>
+        </div>
+      </section>
     </main>
+
+    <footer>
+      <div class="wrap">© Rooms. Home rental made clearer. Only Haidware-reviewed listings are displayed.</div>
+    </footer>
+
+    <div class="modal{% if inspection_listing %} open{% endif %}" id="inspectionModal" role="dialog" aria-modal="true" aria-labelledby="inspectionTitle" aria-hidden="{% if inspection_listing %}false{% else %}true{% endif %}" onclick="if(event.target===this)closeInspection()">
+      <div class="dialog">
+        <div class="dialog-head">
+          <div>
+            <h2 id="inspectionTitle">Request a viewing</h2>
+            <p id="inspectionDescription">Leave your contact details and Rooms will follow up to arrange a viewing.</p>
+          </div>
+          <button class="close-button" type="button" aria-label="Close viewing request" onclick="closeInspection()">×</button>
+        </div>
+        <form id="inspectionForm" method="post" action="{% if inspection_listing %}{% url 'public_inspection_request' inspection_listing.slug %}{% else %}#{% endif %}">
+          {% csrf_token %}
+          <div class="form-grid">
+            {% for field in inspection_form %}
+              <div class="field form-field{% if field.name == 'message' %} full{% endif %}">
+                <label for="{{ field.id_for_label }}">{{ field.label }}{% if field.field.required %} *{% endif %}</label>
+                {{ field }}
+                {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+              </div>
+            {% endfor %}
+            {% for error in inspection_form.non_field_errors %}<p class="errors full">{{ error }}</p>{% endfor %}
+          </div>
+          <p class="form-note">Your request is sent to Rooms for follow-up. No payment is taken through this form.</p>
+          <button class="button button-teal" type="submit">Send viewing request</button>
+        </form>
+      </div>
+    </div>
+
+    <script>
+      const inspectionModal = document.getElementById("inspectionModal");
+      const inspectionForm = document.getElementById("inspectionForm");
+      const inspectionTitle = document.getElementById("inspectionTitle");
+      const inspectionDescription = document.getElementById("inspectionDescription");
+      const inspectionMessage = document.getElementById("id_message");
+
+      function openInspection(button) {
+        inspectionForm.action = button.dataset.inspectionUrl;
+        inspectionTitle.textContent = "Request a viewing";
+        inspectionDescription.textContent = "Viewing request for " + button.dataset.listingTitle + " in " + button.dataset.listingLocation + ". Rooms will follow up to arrange a viewing.";
+        if (inspectionMessage && !inspectionMessage.value) {
+          inspectionMessage.value = "Interested in viewing: " + button.dataset.listingTitle + " — " + button.dataset.listingLocation;
+        }
+        inspectionModal.classList.add("open");
+        inspectionModal.setAttribute("aria-hidden", "false");
+        document.body.style.overflow = "hidden";
+        document.getElementById("id_guest_name").focus();
+      }
+
+      function closeInspection() {
+        inspectionModal.classList.remove("open");
+        inspectionModal.setAttribute("aria-hidden", "true");
+        document.body.style.overflow = "";
+      }
+
+      document.addEventListener("keydown", function(event) {
+        if (event.key === "Escape") closeInspection();
+      });
+
+      {% if inspection_listing %}
+        inspectionTitle.textContent = "Request a viewing";
+        inspectionDescription.textContent = "Viewing request for {{ inspection_listing.title|escapejs }} in {{ inspection_listing.city|escapejs }}, {{ inspection_listing.state|escapejs }}.";
+        document.body.style.overflow = "hidden";
+      {% endif %}
+    </script>
   </body>
 </html>
