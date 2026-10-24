@@ -7,6 +7,24 @@ import 'package:http/testing.dart';
 import 'package:rooms_rental_web/main.dart';
 
 void main() {
+  test(
+    'proxy mode prefixes rental API requests with its same-origin path',
+    () async {
+      final requests = <http.Request>[];
+      final api = RentalApi(
+        proxyPrefix: '/rentals',
+        client: MockClient((request) async {
+          requests.add(request);
+          return _listingResponse();
+        }),
+      );
+
+      await api.loadListings();
+
+      expect(requests.single.url.path, '/rentals/api/public/listings/');
+    },
+  );
+
   testWidgets(
     'rental homepage matches Rooms categories and displays live data',
     (tester) async {

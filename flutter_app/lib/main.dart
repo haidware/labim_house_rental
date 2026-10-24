@@ -17,11 +17,17 @@ final _naira = NumberFormat.currency(
   decimalDigits: 0,
 );
 
-void main() => runApp(
-  RoomsRentalApp(
-    landProperties: Uri.base.path.replaceFirst(RegExp(r'/$'), '') == '/land',
-  ),
-);
+String get _rentalProxyPrefix =>
+    Uri.base.path == '/rentals' || Uri.base.path.startsWith('/rentals/')
+    ? '/rentals'
+    : '';
+
+void main() {
+  final path = Uri.base.path.replaceFirst(RegExp(r'/$'), '');
+  runApp(
+    RoomsRentalApp(landProperties: path == '/land' || path == '/rentals/land'),
+  );
+}
 
 class RoomsRentalApp extends StatelessWidget {
   const RoomsRentalApp({super.key, this.landProperties = false});
@@ -142,17 +148,22 @@ class RentalApiException implements Exception {
 }
 
 class RentalApi {
-  RentalApi({http.Client? client, Future<bool> Function(Uri)? whatsappLauncher})
-    : _client = client ?? http.Client(),
-      _whatsappLauncher = whatsappLauncher;
+  RentalApi({
+    http.Client? client,
+    Future<bool> Function(Uri)? whatsappLauncher,
+    String? proxyPrefix,
+  }) : _client = client ?? http.Client(),
+       _whatsappLauncher = whatsappLauncher,
+       _proxyPrefix = proxyPrefix ?? _rentalProxyPrefix;
 
   final http.Client _client;
   final Future<bool> Function(Uri)? _whatsappLauncher;
+  final String _proxyPrefix;
   String? _csrfToken;
   String? inspectionWhatsAppNumber;
 
   Uri _uri(String path, [Map<String, String>? query]) =>
-      Uri.base.resolve(path).replace(queryParameters: query);
+      Uri.base.resolve('$_proxyPrefix$path').replace(queryParameters: query);
 
   Future<Map<String, dynamic>> _decode(http.Response response) async {
     final dynamic body;
@@ -600,7 +611,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
   }
 
   Future<void> _openInternal(String path) async {
-    final uri = Uri.base.resolve(path);
+    final uri = Uri.base.resolve('$_rentalProxyPrefix$path');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri, webOnlyWindowName: '_self');
     } else if (mounted) {

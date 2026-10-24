@@ -12,6 +12,8 @@ accounts to manage their listings.
   land/property listings for rent or sale.
 - Home search by location, city, and maximum monthly rent.
 - Land/property search by location, city, listing type, and price at `/land`.
+- When served through the Rooms same-origin proxy, the app supports the
+  `/rentals` mount path for its web assets, API requests, and internal links.
 - Public viewing requests saved for staff follow-up.
 - Home rental requests require property details and owner agreement to a
   verification visit; Rooms manages the visit, photos and listing setup.
