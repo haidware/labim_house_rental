@@ -1,0 +1,105 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Tell Rooms about your home for rent and arrange a property verification visit.">
+    <title>List your property | Rooms</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif; color: #153d4c; background: #f8fafb; --teal: #17607a; --navy: #173f4c; --muted: #667477; --line: #dfe5e6; --yellow: #ffc629; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      a { color: inherit; text-decoration: none; }
+      .topbar { background: var(--navy); color: white; }
+      .nav { display: flex; width: min(1100px, calc(100% - 40px)); min-height: 82px; align-items: center; margin: 0 auto; }
+      .brand { display: inline-flex; align-items: center; gap: 13px; font-size: 32px; font-weight: 800; letter-spacing: -1.4px; }
+      .brand-mark { display: grid; width: 50px; height: 50px; place-items: center; border-radius: 14px; background: var(--yellow); color: #082a55; }
+      .brand-mark svg { width: 34px; height: 34px; }
+      .brand-dot { color: #e53950; }
+      .back { margin-left: auto; color: #dce7e8; font-size: 14px; font-weight: 650; }
+      main { width: min(700px, calc(100% - 32px)); margin: 40px auto 60px; }
+      .card { padding: clamp(22px, 5vw, 38px); border: 1px solid var(--line); border-radius: 22px; background: white; box-shadow: 0 8px 28px #153d4c0a; }
+      .eyebrow { margin: 0 0 10px; color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+      h1 { margin: 0; color: var(--navy); font-size: clamp(30px, 5vw, 40px); line-height: 1.1; letter-spacing: -1px; }
+      .intro { margin: 12px 0 22px; color: var(--muted); font-size: 16px; line-height: 1.55; }
+      .steps { display: grid; gap: 9px; margin: 0 0 24px; padding: 16px 18px; border-radius: 15px; background: #f0f6f6; list-style: none; }
+      .steps li { display: flex; align-items: start; gap: 10px; color: #435f65; font-size: 13px; line-height: 1.5; }
+      .step-number { display: grid; flex: 0 0 22px; width: 22px; height: 22px; place-items: center; border-radius: 50%; background: white; color: var(--teal); font-size: 11px; font-weight: 800; }
+      .fields { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+      .field { min-width: 0; }
+      .field.full { grid-column: 1 / -1; }
+      .field label { display: block; margin: 0 0 7px 12px; color: #53686c; font-size: 12px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase; }
+      .field input, .field select, .field textarea { width: 100%; min-height: 54px; padding: 13px 15px; border: 1px solid #d5dfe0; border-radius: 15px; outline: none; background: white; color: #203e45; font: inherit; }
+      .field textarea { min-height: 88px; resize: vertical; }
+      .field input:focus, .field select:focus, .field textarea:focus { border-color: var(--teal); box-shadow: 0 0 0 3px #17607a1c; }
+      .errors { margin: 6px 0 0; color: #a32f2f; font-size: 12px; line-height: 1.45; }
+      .form-errors { margin: 0 0 16px; padding: 12px 14px; border-radius: 11px; background: #fff2f1; color: #a32f2f; font-size: 13px; }
+      .terms { display: grid; grid-template-columns: 21px 1fr; align-items: start; gap: 12px; margin-top: 21px; padding: 15px; border: 1px solid var(--line); border-radius: 14px; }
+      .terms input { width: 19px; height: 19px; margin: 2px 0 0; accent-color: var(--teal); }
+      .terms label { color: #52666a; font-size: 13px; line-height: 1.55; cursor: pointer; }
+      .button { display: inline-flex; min-height: 52px; align-items: center; justify-content: center; gap: 8px; margin-top: 19px; padding: 13px 20px; border: 0; border-radius: 15px; background: var(--teal); color: white; font: inherit; font-weight: 750; cursor: pointer; }
+      .button:hover { filter: brightness(.96); }
+      .note { margin: 13px 0 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
+      @media (max-width: 580px) {
+        .nav { width: calc(100% - 28px); min-height: 72px; }
+        .brand { gap: 10px; font-size: 27px; }
+        .brand-mark { width: 44px; height: 44px; border-radius: 12px; }
+        .brand-mark svg { width: 30px; height: 30px; }
+        .back { font-size: 12px; }
+        main { margin-top: 23px; }
+        .fields { grid-template-columns: 1fr; gap: 14px; }
+        .field.full { grid-column: auto; }
+        .button { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
+            </svg>
+          </span>
+          <span>Rooms<span class="brand-dot">.</span></span>
+        </a>
+        <a class="back" href="{% url 'home' %}">← Back to homes</a>
+      </nav>
+    </header>
+    <main>
+      <section class="card">
+        <p class="eyebrow">Rooms home rentals</p>
+        <h1>Tell us about your property</h1>
+        <p class="intro">Share the property address and your contact details. The Rooms team will call you to arrange a visit and verify the home before taking photos and preparing its listing.</p>
+        <ol class="steps">
+          <li><span class="step-number">1</span><span>Send your property details and agree to a verification visit.</span></li>
+          <li><span class="step-number">2</span><span>Rooms contacts you to arrange a visit and verify the property.</span></li>
+          <li><span class="step-number">3</span><span>After verification, Rooms handles photos and listing details before review and publication.</span></li>
+        </ol>
+        <form method="post">
+          {% csrf_token %}
+          {% if form.non_field_errors %}<div class="form-errors">{{ form.non_field_errors }}</div>{% endif %}
+          <div class="fields">
+            {% for field in form %}
+              {% if field.name != "terms_accepted" %}
+                <div class="field{% if field.name == 'address' %} full{% endif %}">
+                  <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                  {{ field }}
+                  {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+                </div>
+              {% endif %}
+            {% endfor %}
+          </div>
+          <div class="terms">
+            {{ form.terms_accepted }}
+            <label for="{{ form.terms_accepted.id_for_label }}">{{ form.terms_accepted.label }}</label>
+          </div>
+          {% for error in form.terms_accepted.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+          <button class="button" type="submit">Send property request <span aria-hidden="true">→</span></button>
+          <p class="note">This is a request for a Rooms visit, not a published listing. There is no charge for submitting this form.</p>
+        </form>
+      </section>
+    </main>
+  </body>
+</html>

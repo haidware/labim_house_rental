@@ -3,7 +3,13 @@ from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
 from django.forms import inlineformset_factory
 
-from .models import InspectionRequest, ListingPhoto, OwnerProfile, RentalListing
+from .models import (
+    InspectionRequest,
+    ListingPhoto,
+    OwnerProfile,
+    PropertyListingRequest,
+    RentalListing,
+)
 
 
 class OwnerAccountRequestForm(UserCreationForm):
@@ -11,7 +17,9 @@ class OwnerAccountRequestForm(UserCreationForm):
     first_name = forms.CharField(max_length=150)
     last_name = forms.CharField(max_length=150)
     phone = forms.CharField(max_length=40)
-    owner_type = forms.ChoiceField(choices=OwnerProfile.OwnerType.choices)
+    owner_type = forms.ChoiceField(
+        choices=((OwnerProfile.OwnerType.LAND, "Land or property owner"),)
+    )
 
     class Meta(UserCreationForm.Meta):
         model = get_user_model()
@@ -96,6 +104,40 @@ class PublicInspectionRequestForm(forms.ModelForm):
             "message": forms.Textarea(
                 attrs={"rows": 3, "placeholder": "Anything else Rooms should know?"}
             ),
+        }
+
+
+class PropertyListingRequestForm(forms.ModelForm):
+    terms_accepted = forms.BooleanField(
+        label=(
+            "I confirm that I own or am authorized to represent this property, "
+            "that it is available for rent, and I agree Rooms may contact me "
+            "and visit the address to verify it. I understand this request "
+            "does not guarantee a listing or publication."
+        ),
+        required=True,
+    )
+
+    class Meta:
+        model = PropertyListingRequest
+        fields = ("owner_name", "phone", "property_type", "address")
+        labels = {
+            "owner_name": "Your name",
+            "phone": "Phone number",
+            "property_type": "Type of property for rent",
+            "address": "Full property address",
+        }
+        widgets = {
+            "address": forms.Textarea(
+                attrs={
+                    "rows": 3,
+                    "placeholder": "Street, area, city and state",
+                }
+            ),
+            "phone": forms.TelInput(
+                attrs={"autocomplete": "tel", "placeholder": "+234"}
+            ),
+            "owner_name": forms.TextInput(attrs={"autocomplete": "name"}),
         }
 
 

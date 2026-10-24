@@ -3,8 +3,14 @@
 ALTER TABLE public.rental_listings ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_listing_photos ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_inspection_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.rental_property_listing_requests ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_admin_profiles ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.rental_owner_profiles ENABLE ROW LEVEL SECURITY;
+
+REVOKE ALL ON public.rental_inspection_requests FROM anon, authenticated;
+REVOKE ALL ON public.rental_property_listing_requests FROM anon, authenticated;
+REVOKE ALL ON public.rental_admin_profiles FROM anon, authenticated;
+REVOKE ALL ON public.rental_owner_profiles FROM anon, authenticated;
 
 GRANT SELECT ON public.rental_listings TO anon, authenticated;
 GRANT SELECT ON public.rental_listing_photos TO anon, authenticated;

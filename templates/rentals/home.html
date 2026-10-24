@@ -181,7 +181,7 @@
     <div class="category-bar">
       <nav class="category-nav" aria-label="Property categories">
         <a class="category-tab active" href="{% url 'home' %}#listings" aria-current="page">Homes</a>
-        <a class="category-tab action" href="{% url 'accounts:owner_request' %}?owner_type=home">List a property</a>
+        <a class="category-tab action" href="{% url 'property_listing_request' %}">List a property</a>
       </nav>
     </div>
 
@@ -297,17 +297,17 @@
           <section class="info-card">
             <h2>How Rooms works</h2>
             <ol>
-              <li>Owners request an account and wait for Haidware approval.</li>
-              <li>Approved owners submit property listings for review.</li>
-              <li>Haidware checks each listing before it is published.</li>
-              <li>Renters request a viewing; the Rooms team follows up.</li>
+              <li>Owners share the address, property type and contact number.</li>
+              <li>Rooms contacts the owner and visits to verify the home.</li>
+              <li>Rooms handles property photos and prepares the listing details.</li>
+              <li>The verified listing is reviewed before it is published.</li>
             </ol>
           </section>
           <section class="info-card">
             <h2>Own a property?</h2>
-            <p>Start an owner account request. A request does not publish a property; listings are reviewed by Haidware first.</p>
+            <p>Send us the property address and your contact details. Rooms will arrange a visit and handle the verification, photos and listing setup.</p>
             <div class="owner-links">
-              <a href="{% url 'accounts:owner_request' %}?owner_type=home">List a home for rent →</a>
+              <a href="{% url 'property_listing_request' %}">List a home for rent →</a>
               <a href="{% url 'accounts:owner_request' %}?owner_type=land">List land or property →</a>
             </div>
           </section>

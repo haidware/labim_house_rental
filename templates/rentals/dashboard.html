@@ -23,7 +23,7 @@
   <body>
     <header><h1>Labim House Rentals</h1></header>
     <main>
-      <p class="intro">Review owner accounts and control which property listings are published.</p>
+      <p class="intro">Follow up property visit requests, review listings and manage rental operations.</p>
       {% if messages %}
         {% for message in messages %}<p>{{ message }}</p>{% endfor %}
       {% endif %}
@@ -32,6 +32,7 @@
         <div class="card">Published<span class="number">{{ published_count }}</span></div>
         <div class="card">Awaiting listing review<span class="number">{{ pending_listing_count }}</span></div>
         <div class="card">Owner requests<span class="number">{{ pending_owner_count }}</span></div>
+        <div class="card">New home requests<span class="number">{{ new_property_request_count }}</span></div>
         <div class="card">New inspections<span class="number">{{ new_inspection_count }}</span></div>
       </div>
       <section>
@@ -54,6 +55,8 @@
           <p>No inspection requests yet.</p>
         {% endif %}
         <p>
+          <a href="{% url 'admin:rentals_propertylistingrequest_changelist' %}">Follow up home requests</a>
+          &middot;
           <a href="{% url 'admin:rentals_ownerprofile_changelist' %}">Review owner account requests</a>
           &middot;
           <a href="{% url 'admin:rentals_rentallisting_changelist' %}">Review and publish listings</a>

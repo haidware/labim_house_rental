@@ -1,8 +1,14 @@
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
+from django.utils import timezone
 
-from .models import InspectionRequest, OwnerProfile, RentalListing
+from .models import (
+    InspectionRequest,
+    OwnerProfile,
+    PropertyListingRequest,
+    RentalListing,
+)
 
 
 class RentalAdminTests(TestCase):
@@ -44,7 +50,8 @@ class RentalAdminTests(TestCase):
         self.assertContains(response, "Homes available for rent")
         self.assertContains(response, "Bright family home")
         self.assertContains(response, "List a property")
-        self.assertContains(response, "Owners request an account")
+        self.assertContains(response, "Rooms contacts the owner")
+        self.assertContains(response, reverse("property_listing_request"))
 
     def test_home_page_only_shows_published_homes_for_rent(self):
         RentalListing.objects.create(
@@ -187,7 +194,7 @@ class RentalAdminTests(TestCase):
             user.owner_profile.status,
             OwnerProfile.AccountStatus.PENDING,
         )
-        self.assertContains(response, "Request received")
+        self.assertContains(response, "Account request received")
 
     def test_owner_account_request_page_uses_rooms_branding(self):
         response = self.client.get(
@@ -195,8 +202,106 @@ class RentalAdminTests(TestCase):
             {"owner_type": OwnerProfile.OwnerType.HOME},
         )
 
-        self.assertContains(response, "Rooms")
-        self.assertContains(response, "Apply to list a property")
+        self.assertRedirects(response, reverse("property_listing_request"))
+
+    def test_property_request_page_has_required_fields_and_terms(self):
+        response = self.client.get(reverse("property_listing_request"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Your name")
+        self.assertContains(response, "Phone number")
+        self.assertContains(response, "Type of property for rent")
+        self.assertContains(response, "Full property address")
+        self.assertContains(response, "agree Rooms may contact me")
+
+    def test_property_request_records_owner_details_and_terms(self):
+        response = self.client.post(
+            reverse("property_listing_request"),
+            {
+                "owner_name": "Property Owner",
+                "phone": "+2348012345678",
+                "property_type": PropertyListingRequest.PropertyType.APARTMENT,
+                "address": "12 Example Street, Lekki, Lagos",
+                "terms_accepted": "on",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse("property_listing_request_submitted"),
+        )
+        response = self.client.get(reverse("property_listing_request_submitted"))
+        self.assertContains(response, "We’ve received your details")
+        property_request = PropertyListingRequest.objects.get()
+        self.assertEqual(property_request.owner_name, "Property Owner")
+        self.assertEqual(property_request.phone, "+2348012345678")
+        self.assertEqual(
+            property_request.property_type,
+            PropertyListingRequest.PropertyType.APARTMENT,
+        )
+        self.assertEqual(
+            property_request.address,
+            "12 Example Street, Lekki, Lagos",
+        )
+        self.assertTrue(property_request.terms_accepted)
+        self.assertIsNotNone(property_request.terms_accepted_at)
+        self.assertEqual(property_request.status, PropertyListingRequest.Status.NEW)
+        self.assertFalse(RentalListing.objects.exclude(pk=self.listing.pk).exists())
+
+    def test_property_request_requires_terms_acceptance(self):
+        response = self.client.post(
+            reverse("property_listing_request"),
+            {
+                "owner_name": "Property Owner",
+                "phone": "+2348012345678",
+                "property_type": PropertyListingRequest.PropertyType.HOUSE,
+                "address": "12 Example Street, Lekki, Lagos",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "This field is required.")
+        self.assertFalse(PropertyListingRequest.objects.exists())
+
+    def test_staff_dashboard_counts_new_property_requests(self):
+        PropertyListingRequest.objects.create(
+            owner_name="Property Owner",
+            phone="+2348012345678",
+            property_type=PropertyListingRequest.PropertyType.HOUSE,
+            address="12 Example Street, Lekki, Lagos",
+            terms_accepted=True,
+            terms_accepted_at=timezone.now(),
+        )
+        self.client.force_login(self.staff)
+
+        response = self.client.get(reverse("dashboard"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["new_property_request_count"], 1)
+
+    def test_staff_can_review_property_requests_in_admin(self):
+        PropertyListingRequest.objects.create(
+            owner_name="Property Owner",
+            phone="+2348012345678",
+            property_type=PropertyListingRequest.PropertyType.HOUSE,
+            address="12 Example Street, Lekki, Lagos",
+            terms_accepted=True,
+            terms_accepted_at=timezone.now(),
+        )
+        admin_user = get_user_model().objects.create_superuser(
+            username="rental-admin",
+            email="admin@example.com",
+            password=self.password,
+        )
+        self.client.force_login(admin_user)
+
+        response = self.client.get(
+            reverse("admin:rentals_propertylistingrequest_changelist")
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Property Owner")
+        self.assertContains(response, "12 Example Street, Lekki, Lagos")
 
     def test_staff_can_approve_owner_account_request(self):
         user = get_user_model().objects.create_user(

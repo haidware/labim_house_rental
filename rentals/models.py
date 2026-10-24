@@ -147,6 +147,48 @@ class InspectionRequest(models.Model):
         return f"{self.guest_name} — {self.listing}"
 
 
+class PropertyListingRequest(models.Model):
+    class PropertyType(models.TextChoices):
+        HOUSE = "house", "House"
+        APARTMENT = "apartment", "Apartment / flat"
+        DUPLEX = "duplex", "Duplex"
+        BUNGALOW = "bungalow", "Bungalow"
+        ROOM = "room", "Room / self-contained"
+        OTHER = "other", "Other"
+
+    class Status(models.TextChoices):
+        NEW = "new", "New request"
+        CONTACTED = "contacted", "Owner contacted"
+        VISIT_SCHEDULED = "visit_scheduled", "Visit scheduled"
+        VERIFIED = "verified", "Property verified"
+        DECLINED = "declined", "Not proceeding"
+
+    owner_name = models.CharField(max_length=160)
+    phone = models.CharField(max_length=40)
+    property_type = models.CharField(max_length=20, choices=PropertyType.choices)
+    address = models.CharField(max_length=500)
+    terms_accepted = models.BooleanField(default=False)
+    terms_accepted_at = models.DateTimeField()
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.NEW,
+        db_index=True,
+    )
+    staff_notes = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        verbose_name = "home rental request"
+        verbose_name_plural = "home rental requests"
+        db_table = "rental_property_listing_requests"
+
+    def __str__(self):
+        return f"{self.owner_name} — {self.get_property_type_display()}"
+
+
 class RentalAdminProfile(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL,

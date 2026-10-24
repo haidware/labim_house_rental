@@ -28,6 +28,16 @@ urlpatterns = [
         views.public_inspection_request,
         name="public_inspection_request",
     ),
+    path(
+        "list-your-property/",
+        views.property_listing_request,
+        name="property_listing_request",
+    ),
+    path(
+        "list-your-property/received/",
+        views.property_listing_request_submitted,
+        name="property_listing_request_submitted",
+    ),
     path("accounts/", include(account_patterns, namespace="accounts")),
     path("dashboard/", views.dashboard, name="dashboard"),
     path("owner/house/", views.home_owner_dashboard, name="home_owner_dashboard"),

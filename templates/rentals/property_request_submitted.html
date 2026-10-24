@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Rooms has received your home rental request.">
+    <title>Property request received | Rooms</title>
+    <style>
+      :root { color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif; color: #153d4c; background: #f8fafb; --teal: #17607a; --navy: #173f4c; --muted: #667477; --line: #dfe5e6; --yellow: #ffc629; }
+      * { box-sizing: border-box; }
+      body { margin: 0; }
+      a { color: inherit; text-decoration: none; }
+      .topbar { background: var(--navy); color: white; }
+      .nav { display: flex; width: min(1100px, calc(100% - 40px)); min-height: 82px; align-items: center; margin: 0 auto; }
+      .brand { display: inline-flex; align-items: center; gap: 13px; font-size: 32px; font-weight: 800; letter-spacing: -1.4px; }
+      .brand-mark { display: grid; width: 50px; height: 50px; place-items: center; border-radius: 14px; background: var(--yellow); color: #082a55; }
+      .brand-mark svg { width: 34px; height: 34px; }
+      .brand-dot { color: #e53950; }
+      main { width: min(620px, calc(100% - 32px)); margin: 46px auto 60px; }
+      .card { padding: clamp(24px, 5vw, 42px); border: 1px solid var(--line); border-radius: 22px; background: white; text-align: center; box-shadow: 0 8px 28px #153d4c0a; }
+      .check { display: grid; width: 58px; height: 58px; place-items: center; margin: 0 auto 18px; border-radius: 50%; background: #e8f5ed; color: #267348; font-size: 30px; font-weight: 800; }
+      .eyebrow { margin: 0 0 10px; color: var(--teal); font-size: 12px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
+      h1 { margin: 0; color: var(--navy); font-size: clamp(29px, 5vw, 38px); line-height: 1.12; letter-spacing: -1px; }
+      .intro { max-width: 460px; margin: 12px auto 20px; color: var(--muted); font-size: 15px; line-height: 1.55; }
+      .next { padding: 15px; border-radius: 14px; background: #f0f6f6; color: #435f65; font-size: 13px; line-height: 1.55; text-align: left; }
+      .next strong { color: var(--navy); }
+      .button { display: inline-flex; min-height: 48px; align-items: center; justify-content: center; margin-top: 22px; padding: 12px 19px; border-radius: 15px; background: var(--teal); color: white; font-weight: 750; }
+      @media (max-width: 580px) {
+        .nav { width: calc(100% - 28px); min-height: 72px; }
+        .brand { gap: 10px; font-size: 27px; }
+        .brand-mark { width: 44px; height: 44px; border-radius: 12px; }
+        .brand-mark svg { width: 30px; height: 30px; }
+        main { margin-top: 24px; }
+        .button { width: 100%; }
+      }
+    </style>
+  </head>
+  <body>
+    <header class="topbar">
+      <nav class="nav" aria-label="Main navigation">
+        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
+              <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
+            </svg>
+          </span>
+          <span>Rooms<span class="brand-dot">.</span></span>
+        </a>
+      </nav>
+    </header>
+    <main>
+      <section class="card">
+        <div class="check" aria-hidden="true">✓</div>
+        <p class="eyebrow">Home rental request</p>
+        <h1>We’ve received your details</h1>
+        <p class="intro">Thank you for telling us about your property. A Rooms team member will contact you to arrange a visit and verify the home.</p>
+        <p class="next"><strong>What happens next?</strong> After the visit, Rooms will handle the property photos and listing details. Your home will only be published after verification and review.</p>
+        <a class="button" href="{% url 'home' %}">Return to homes</a>
+      </section>
+    </main>
+  </body>
+</html>

@@ -5,6 +5,7 @@ from django.db import transaction
 from .models import (
     InspectionRequest,
     ListingPhoto,
+    PropertyListingRequest,
     RentalAdminProfile,
     RentalListing,
     OwnerProfile,
@@ -67,6 +68,47 @@ class InspectionRequestAdmin(admin.ModelAdmin):
     )
     readonly_fields = ("created_at", "updated_at")
     list_editable = ("status",)
+
+
+@admin.register(PropertyListingRequest)
+class PropertyListingRequestAdmin(admin.ModelAdmin):
+    list_display = (
+        "owner_name",
+        "property_type",
+        "phone",
+        "address",
+        "status",
+        "terms_accepted",
+        "created_at",
+    )
+    list_filter = ("status", "property_type", "terms_accepted", "created_at")
+    search_fields = ("owner_name", "phone", "address", "staff_notes")
+    readonly_fields = ("terms_accepted_at", "created_at", "updated_at")
+    list_editable = ("status",)
+    empty_value_display = "—"
+
+    def has_add_permission(self, request):
+        return False
+
+    fieldsets = (
+        (
+            "Owner and property",
+            {"fields": ("owner_name", "phone", "property_type", "address")},
+        ),
+        (
+            "Agreement and follow-up",
+            {
+                "fields": (
+                    "terms_accepted",
+                    "terms_accepted_at",
+                    "status",
+                    "staff_notes",
+                    "created_at",
+                    "updated_at",
+                )
+            },
+        ),
+    )
 
 
 @admin.register(RentalAdminProfile)

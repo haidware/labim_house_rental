@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Apply to list a home or property with Rooms.">
-    <title>Apply to list a property | Rooms</title>
+    <meta name="description" content="Request an owner account for a land or property listing with Rooms.">
+    <title>Request a land/property account | Rooms</title>
     <style>
       :root { color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif; color: #153d4c; background: #f7f9f9; --teal: #17607a; --navy: #153d4c; --muted: #64777b; --line: #dfe8e9; --yellow: #ffc629; }
       * { box-sizing: border-box; }
@@ -64,10 +64,10 @@
     </header>
     <main>
       <section class="card">
-        <p class="eyebrow">Owner application</p>
-        <h1>Apply to list a property</h1>
-        <p class="intro">Create an owner account to get started. The Rooms team will review your application before you can sign in or submit a listing.</p>
-        <p class="approval-note"><strong>What happens next?</strong> Haidware reviews your account request. After approval, you can submit your property details for a separate listing review.</p>
+        <p class="eyebrow">Land and property listings</p>
+        <h1>Request an owner account</h1>
+        <p class="intro">Create an account to manage a land or property listing. The Rooms team will review your account request before you can sign in.</p>
+        <p class="approval-note"><strong>What happens next?</strong> Haidware reviews your account request. After approval, you can submit and manage your land or property details.</p>
         <form method="post">
           {% csrf_token %}
           {% for error in form.non_field_errors %}<p class="form-errors">{{ error }}</p>{% endfor %}

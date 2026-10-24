@@ -5,6 +5,7 @@ from django.db import transaction
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
+from django.utils import timezone
 from django.views.decorators.http import require_POST
 
 from .forms import (
@@ -12,8 +13,14 @@ from .forms import (
     OwnerAccountRequestForm,
     OwnerListingForm,
     PublicInspectionRequestForm,
+    PropertyListingRequestForm,
 )
-from .models import InspectionRequest, OwnerProfile, RentalListing
+from .models import (
+    InspectionRequest,
+    OwnerProfile,
+    PropertyListingRequest,
+    RentalListing,
+)
 
 
 def home(request):
@@ -123,6 +130,9 @@ def dashboard(request):
             "pending_owner_count": OwnerProfile.objects.filter(
                 status=OwnerProfile.AccountStatus.PENDING
             ).count(),
+            "new_property_request_count": PropertyListingRequest.objects.filter(
+                status=PropertyListingRequest.Status.NEW
+            ).count(),
             "new_inspection_count": InspectionRequest.objects.filter(
                 status=InspectionRequest.Status.NEW
             ).count(),
@@ -185,6 +195,8 @@ def _owner_dashboard(request, owner_type):
 def owner_account_request(request):
     if request.user.is_authenticated:
         return redirect("dashboard")
+    if request.GET.get("owner_type") == OwnerProfile.OwnerType.HOME:
+        return redirect("property_listing_request")
 
     form = OwnerAccountRequestForm(
         request.POST or None,
@@ -206,6 +218,26 @@ def owner_account_request(request):
         return render(request, "rentals/owner_request_submitted.html")
 
     return render(request, "rentals/owner_request.html", {"form": form})
+
+
+def property_listing_request(request):
+    form = PropertyListingRequestForm(request.POST or None)
+    if request.method == "POST" and form.is_valid():
+        property_request = form.save(commit=False)
+        property_request.terms_accepted = form.cleaned_data["terms_accepted"]
+        property_request.terms_accepted_at = timezone.now()
+        property_request.save()
+        return redirect("property_listing_request_submitted")
+
+    return render(
+        request,
+        "rentals/property_request.html",
+        {"form": form},
+    )
+
+
+def property_listing_request_submitted(request):
+    return render(request, "rentals/property_request_submitted.html")
 
 
 def _owner_profile(request):
