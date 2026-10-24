@@ -1,18 +1,23 @@
 import logging
+import json
+import mimetypes
+import os
 import secrets
 from functools import wraps
 from uuid import uuid4
 
 from django.conf import settings
 from django.contrib import messages
-from django.http import Http404
+from django.middleware.csrf import get_token
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import redirect, render
 from django.template.defaultfilters import slugify
 from django.urls import reverse
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.utils import timezone
 from django.views.decorators.cache import never_cache
-from django.views.decorators.http import require_POST
+from django.views.decorators.csrf import ensure_csrf_cookie
+from django.views.decorators.http import require_GET, require_POST
 from postgrest.exceptions import APIError
 from supabase_auth.errors import AuthApiError
 
@@ -123,7 +128,217 @@ def _owner_required(view):
 
 
 def home(request):
+    flutter_index = settings.FLUTTER_WEB_BUILD_DIRECTORY / "index.html"
+    if flutter_index.is_file():
+        response = FileResponse(flutter_index.open("rb"), content_type="text/html")
+        response["Cache-Control"] = "no-cache"
+        return response
+    if settings.IS_RENDER:
+        logger.error("Flutter web build is missing: %s", flutter_index)
+        return JsonResponse(
+            {"error": "The rental website is temporarily unavailable."},
+            status=503,
+        )
     return _render_public_home(request)
+
+
+def flutter_asset(request, asset):
+    build_directory = settings.FLUTTER_WEB_BUILD_DIRECTORY.resolve()
+    asset_path = (build_directory / asset).resolve()
+    try:
+        if os.path.commonpath(
+            (str(build_directory), str(asset_path))
+        ) != str(build_directory):
+            raise Http404
+    except ValueError as error:
+        raise Http404 from error
+    if not asset_path.is_file():
+        raise Http404
+    content_type = (
+        "application/wasm"
+        if asset_path.suffix == ".wasm"
+        else mimetypes.guess_type(asset_path.name)[0]
+    )
+    response = FileResponse(
+        asset_path.open("rb"),
+        content_type=content_type or "application/octet-stream",
+    )
+    response["Cache-Control"] = (
+        "no-cache" if asset_path.suffix == ".js" else "public, max-age=3600"
+    )
+    return response
+
+
+@require_GET
+@ensure_csrf_cookie
+def public_api_csrf_token(request):
+    return JsonResponse({"csrf_token": get_token(request)})
+
+
+@require_GET
+@ensure_csrf_cookie
+def public_api_listings(request):
+    try:
+        listings = public_listings()
+    except APIError:
+        logger.exception("Could not load public rental listings.")
+        return JsonResponse(
+            {"error": "Homes are temporarily unavailable. Please try again."},
+            status=503,
+        )
+
+    cities = sorted({
+        listing.get("city", "")
+        for listing in listings
+        if listing.get("city")
+    })
+    location = request.GET.get("location", "").strip().casefold()
+    city = request.GET.get("city", "").strip().casefold()
+    budget = request.GET.get("budget", "").strip()
+    budget_options = {"30000", "50000", "100000", "250000", "500000"}
+    max_annual_rent = int(budget) * 12 if budget in budget_options else None
+    if location:
+        listings = [
+            listing for listing in listings
+            if location in " ".join(
+                str(listing.get(field) or "")
+                for field in ("address", "city", "state")
+            ).casefold()
+        ]
+    if city:
+        listings = [
+            listing for listing in listings
+            if str(listing.get("city") or "").casefold() == city
+        ]
+    if max_annual_rent is not None:
+        listings = [
+            listing for listing in listings
+            if (listing.get("annual_rent") or 0) <= max_annual_rent
+        ]
+
+    return JsonResponse({
+        "csrf_token": get_token(request),
+        "listings": [
+            {
+                "id": listing.get("id"),
+                "slug": listing.get("slug", ""),
+                "title": listing.get("title", ""),
+                "description": listing.get("description", ""),
+                "address": listing.get("address", ""),
+                "city": listing.get("city", ""),
+                "state": listing.get("state", ""),
+                "property_type": listing.get("property_type", ""),
+                "bedrooms": listing.get("bedrooms", 0),
+                "bathrooms": listing.get("bathrooms", 0),
+                "annual_rent": listing.get("annual_rent") or 0,
+                "monthly_rent": (
+                    (listing.get("annual_rent") or 0) + 11
+                ) // 12,
+                "photos": [
+                    {
+                        "image": photo.get("image", ""),
+                        "caption": photo.get("caption", ""),
+                    }
+                    for photo in listing.get("photos", [])
+                    if photo.get("image")
+                ],
+            }
+            for listing in listings
+        ],
+        "cities": cities,
+        "listing_count": len(listings),
+    })
+
+
+def _json_payload(request):
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return None
+    return payload if isinstance(payload, dict) else None
+
+
+def _form_errors(form):
+    return {
+        field: [str(error) for error in errors]
+        for field, errors in form.errors.items()
+    }
+
+
+@require_POST
+def public_api_property_request(request):
+    payload = _json_payload(request)
+    if payload is None:
+        return JsonResponse({"error": "Send the request as a JSON object."}, status=400)
+    form = PropertyListingRequestForm(data=payload)
+    if not form.is_valid():
+        return JsonResponse(
+            {"error": "Check the property details and try again.", "errors": _form_errors(form)},
+            status=400,
+        )
+
+    values = {
+        key: form.cleaned_data[key]
+        for key in ("owner_name", "phone", "property_type", "address")
+    }
+    values.update({
+        "terms_accepted": True,
+        "terms_accepted_at": timezone.now().isoformat(),
+        "status": "new",
+        "staff_notes": "",
+    })
+    try:
+        insert("rental_property_listing_requests", values)
+    except APIError:
+        logger.exception("Could not save home rental request.")
+        return JsonResponse(
+            {"error": "Your request could not be sent right now. Please try again."},
+            status=503,
+        )
+    return JsonResponse(
+        {"message": "Your request was received. Rooms will contact you to arrange verification."},
+        status=201,
+    )
+
+
+@require_POST
+def public_api_inspection_request(request, slug):
+    payload = _json_payload(request)
+    if payload is None:
+        return JsonResponse({"error": "Send the request as a JSON object."}, status=400)
+    listing = listing_by_slug(slug, published_only=True)
+    if (
+        not listing
+        or listing.get("category") != RentalListing.Category.HOME
+        or listing.get("transaction_type") != RentalListing.TransactionType.RENT
+    ):
+        raise Http404
+
+    form = PublicInspectionRequestForm(data=payload)
+    if not form.is_valid():
+        return JsonResponse(
+            {"error": "Check your contact details and try again.", "errors": _form_errors(form)},
+            status=400,
+        )
+    values = {
+        key: form.cleaned_data[key]
+        for key in ("guest_name", "email", "phone", "preferred_date", "message")
+    }
+    if values["preferred_date"]:
+        values["preferred_date"] = values["preferred_date"].isoformat()
+    values.update({"listing_id": listing["id"], "status": "new", "staff_notes": ""})
+    try:
+        insert("rental_inspection_requests", values)
+    except APIError:
+        logger.exception("Could not save public rental inspection request.")
+        return JsonResponse(
+            {"error": "Your viewing request could not be sent right now. Please try again."},
+            status=503,
+        )
+    return JsonResponse(
+        {"message": "Your viewing request has been sent to Rooms. Our team will contact you."},
+        status=201,
+    )
 
 
 def _render_public_home(request, *, inspection_form=None, inspection_listing=None):

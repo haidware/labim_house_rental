@@ -166,6 +166,7 @@ USE_TZ = True
 
 STATIC_URL = "static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+FLUTTER_WEB_BUILD_DIRECTORY = BASE_DIR / "flutter_app" / "build" / "web"
 MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 

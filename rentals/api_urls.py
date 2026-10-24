@@ -14,6 +14,23 @@ account_patterns = ([
 ], "accounts")
 
 urlpatterns = [
+    re_path(
+        r"^(?P<asset>(?:[^/]+\.(?:js|json|png|ico|wasm)|(?:assets|canvaskit|icons)/.+))$",
+        api_views.flutter_asset,
+        name="flutter_asset",
+    ),
+    path("api/public/csrf/", api_views.public_api_csrf_token, name="public_api_csrf"),
+    path("api/public/listings/", api_views.public_api_listings, name="public_api_listings"),
+    path(
+        "api/public/property-requests/",
+        api_views.public_api_property_request,
+        name="public_api_property_request",
+    ),
+    path(
+        "api/public/listings/<slug:slug>/inspection-requests/",
+        api_views.public_api_inspection_request,
+        name="public_api_inspection_request",
+    ),
     path("", api_views.home, name="home"),
     path(
         "homes/<slug:slug>/inspection/",

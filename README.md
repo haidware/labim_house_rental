@@ -8,7 +8,7 @@ accounts to manage their listings.
 
 ## Features
 
-- Public Rooms marketplace showing only Haidware-reviewed homes available for rent.
+- Flutter web Rooms marketplace showing only Haidware-reviewed homes available for rent.
 - Home search by location, city, and maximum monthly rent.
 - Public viewing requests saved for staff follow-up.
 - Home rental requests require property details and owner agreement to a
@@ -30,21 +30,32 @@ accounts to manage their listings.
 
 ## Run locally
 
+Build the Flutter web app first, then start Django. Django serves the compiled
+Flutter client and its public rental API from the same origin; the Django
+staff/owner portals remain available.
+
 ```powershell
 py -m venv .venv
 .\.venv\Scripts\Activate.ps1
 pip install -r requirements.txt
 Copy-Item .env.example .env
 python manage.py migrate
+Set-Location flutter_app
+flutter pub get
+flutter build web --base-href=/
+Set-Location ..
 python manage.py runserver
 ```
 
-Open http://127.0.0.1:8000/ to browse published homes, request a viewing, or
-submit a home for Rooms to verify. Staff follow up on property visit requests,
-prepare and publish verified listings, and manage viewing requests in the
-staff portal. Land/property owners can apply for an account and wait for
-Haidware approval; approved owners can manage listings on their role-specific
-dashboard.
+With the rental Supabase REST environment variables set in `.env`, open
+http://127.0.0.1:8000/ to browse published homes, request a viewing, or submit
+a home for Rooms to verify. Flutter calls Django's same-origin
+`/api/public/` endpoints; Django continues to access the rental Supabase
+project and handles validation, CSRF protection, and writes. Staff follow up
+on property visit requests, prepare and publish verified listings, and manage
+viewing requests in the staff portal. Land/property owners can apply for an
+account and wait for Haidware approval; approved owners can manage listings on
+their role-specific dashboard.
 For the local SQLite fallback only, create a Django staff account with
 `python manage.py createsuperuser` to use Django admin. REST mode uses the
 `RENTAL_STAFF_USERNAME` and `RENTAL_STAFF_PASSWORD` values instead.
@@ -90,9 +101,17 @@ staff must upload available originals again through the listing editor.
 For local development, copy `.env.example` to `.env`, set the same Supabase
 values and a staff username/password to exercise REST mode. Without all three
 Supabase API variables, the legacy local SQLite workflow remains available for
-development and tests.
+development and tests; in that mode the root page uses the legacy Django
+template instead of the Flutter site.
 
 ## Production configuration
+
+Deploy this repository as a Docker web service so the Flutter build stage can
+compile the public web client and package it with Django. The included
+`Dockerfile` uses Flutter 3.35.1 to build the web app; Django serves that build
+at `/` and serves the bundle assets. Do not run Flutter's development server
+in production. Configure the service's health check at `/` or another
+application route.
 
 Set a persistent random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
 `SUPABASE_URL`, either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`,
@@ -106,7 +125,6 @@ automatically adds `RENDER_EXTERNAL_HOSTNAME` to
 must also be included in `DJANGO_ALLOWED_HOSTS` and
 `DJANGO_CSRF_TRUSTED_ORIGINS`.
 
-The configured start command may continue to run `python manage.py migrate
---noinput`; those migrations use local SQLite, not Supabase Postgres. Serve
-static files using the existing production setup. Rental photos are uploaded
+The container start command runs `python manage.py migrate --noinput`; those
+migrations use local SQLite, not Supabase Postgres. Rental photos are uploaded
 to the Supabase Storage bucket created by the SQL migration.
