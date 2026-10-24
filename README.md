@@ -69,9 +69,9 @@ rendered into HTML or sent to browser JavaScript.
    key. Never put that secret key in a template, JavaScript bundle, or public
    repository.
 3. Set `RENTAL_STAFF_USERNAME` and `RENTAL_STAFF_PASSWORD` to a unique staff
-   login, with a password of at least 20 characters. Staff use the custom
-   portal at `/staff/records/`; the Django admin login is no longer used in
-   REST mode.
+   login. Use a long, randomly generated password and keep it private. Staff
+   use the custom portal at `/staff/records/`; the Django admin login is no
+   longer used in REST mode.
 4. Owners request an account through the existing form, confirm their account
    according to the Supabase Auth project's email-confirmation settings, and
    wait for staff approval before signing in. Staff can approve owners and
@@ -98,9 +98,9 @@ Set a persistent random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
 `SUPABASE_URL`, either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`,
 either `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`,
 `RENTAL_STAFF_USERNAME`, and `RENTAL_STAFF_PASSWORD` in Render's private
-environment variables. Use a staff password of at least 20 characters. The app
-refuses to start in Render when any required Supabase or staff variable is
-missing. Do not configure `DATABASE_URL` for this app. On Render, the service
+environment variables. Use a long, unique staff password. The app refuses to
+start in Render when any required Supabase or staff variable is missing. Do not
+configure `DATABASE_URL` for this app. On Render, the service
 automatically adds `RENDER_EXTERNAL_HOSTNAME` to
 `ALLOWED_HOSTS` and the matching HTTPS CSRF trusted origin. A custom domain
 must also be included in `DJANGO_ALLOWED_HOSTS` and

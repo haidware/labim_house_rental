@@ -93,8 +93,6 @@ if SUPABASE_API_ENABLED and not (
     raise RuntimeError(
         "Configure RENTAL_STAFF_USERNAME and RENTAL_STAFF_PASSWORD when using Supabase REST mode."
     )
-if SUPABASE_API_ENABLED and len(RENTAL_STAFF_PASSWORD) < 20:
-    raise RuntimeError("RENTAL_STAFF_PASSWORD must be at least 20 characters long.")
 if IS_RENDER:
     missing_supabase_settings = [
         name
