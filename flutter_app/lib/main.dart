@@ -124,10 +124,14 @@ class RentalApiException implements Exception {
 }
 
 class RentalApi {
-  RentalApi({http.Client? client}) : _client = client ?? http.Client();
+  RentalApi({http.Client? client, Future<bool> Function(Uri)? whatsappLauncher})
+    : _client = client ?? http.Client(),
+      _whatsappLauncher = whatsappLauncher;
 
   final http.Client _client;
+  final Future<bool> Function(Uri)? _whatsappLauncher;
   String? _csrfToken;
+  String? inspectionWhatsAppNumber;
 
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.base.resolve(path).replace(queryParameters: query);
@@ -183,6 +187,7 @@ class RentalApi {
     );
     final data = await _decode(response);
     _csrfToken = data['csrf_token']?.toString();
+    inspectionWhatsAppNumber = data['inspection_whatsapp']?.toString();
     return (
       listings: (data['listings'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
@@ -254,6 +259,36 @@ class RentalApi {
     return result['message']?.toString() ??
         'Your viewing request was sent to Rooms.';
   }
+
+  Uri? inspectionWhatsAppUri({
+    required RentalListing listing,
+    required String guestName,
+    required String phone,
+    required DateTime preferredDate,
+    required String message,
+  }) {
+    final recipient = inspectionWhatsAppNumber?.replaceAll(RegExp(r'\D'), '');
+    if (recipient == null || recipient.isEmpty) return null;
+    final details = [
+      'Inspection request',
+      'Property: ${listing.title}',
+      'Location: ${listing.location}',
+      if (listing.propertyType.isNotEmpty)
+        'Property type: ${listing.propertyType}',
+      if (listing.bedrooms > 0) 'Bedrooms: ${listing.bedrooms}',
+      if (listing.bathrooms > 0) 'Bathrooms: ${listing.bathrooms}',
+      'Rent: ${_naira.format(listing.monthlyRent)} approx. per month',
+      'Preferred inspection date: ${DateFormat('EEE, d MMM yyyy').format(preferredDate)}',
+      'Customer: $guestName',
+      'Customer phone: $phone',
+      if (message.isNotEmpty) 'Message: $message',
+    ].join('\n');
+    return Uri.https('wa.me', '/$recipient', {'text': details});
+  }
+
+  Future<bool> launchWhatsApp(Uri uri) =>
+      _whatsappLauncher?.call(uri) ??
+      launchUrl(uri, webOnlyWindowName: '_blank');
 
   void dispose() => _client.close();
 }
@@ -1022,7 +1057,7 @@ class _ListingCard extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(14, 5, 14, 14),
           child: OutlinedButton(
             onPressed: onRequestViewing,
-            child: const Text('Request a viewing'),
+            child: const Text('Request Inspection'),
           ),
         ),
       ],
@@ -1269,6 +1304,9 @@ class _InspectionDialogState extends State<_InspectionDialog> {
   final _phone = TextEditingController();
   final _date = TextEditingController();
   final _message = TextEditingController();
+  DateTime? _preferredDate;
+  Uri? _savedWhatsAppUri;
+  bool _requestSaved = false;
   bool _submitting = false;
   String? _error;
 
@@ -1280,6 +1318,44 @@ class _InspectionDialogState extends State<_InspectionDialog> {
     _date.dispose();
     _message.dispose();
     super.dispose();
+  }
+
+  Future<void> _selectDate() async {
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+    final selected = await showDatePicker(
+      context: context,
+      initialDate: _preferredDate ?? today,
+      firstDate: today,
+      lastDate: DateTime(today.year + 2, today.month, today.day),
+    );
+    if (selected == null || !mounted) return;
+    setState(() {
+      _preferredDate = selected;
+      _date.text = DateFormat('EEE, d MMM yyyy').format(selected);
+    });
+  }
+
+  Future<void> _openWhatsApp() async {
+    final uri = _savedWhatsAppUri;
+    if (uri == null) return;
+    try {
+      final opened = await widget.api.launchWhatsApp(uri);
+      if (opened && mounted) {
+        Navigator.pop(
+          context,
+          'Inspection request saved. Review and send the prepared WhatsApp message.',
+        );
+      } else if (mounted) {
+        setState(() => _error = 'WhatsApp did not open. Please try again.');
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(
+          () => _error = 'WhatsApp could not be opened. Please try again.',
+        );
+      }
+    }
   }
 
   Future<void> _submit() async {
@@ -1294,16 +1370,35 @@ class _InspectionDialogState extends State<_InspectionDialog> {
         guestName: _name.text.trim(),
         email: _email.text.trim(),
         phone: _phone.text.trim(),
-        preferredDate: _date.text.trim(),
+        preferredDate: DateFormat('yyyy-MM-dd').format(_preferredDate!),
         message: _message.text.trim(),
       );
-      if (mounted) Navigator.pop(context, result);
+      _requestSaved = true;
+      _savedWhatsAppUri = widget.api.inspectionWhatsAppUri(
+        listing: widget.listing,
+        guestName: _name.text.trim(),
+        phone: _phone.text.trim(),
+        preferredDate: _preferredDate!,
+        message: _message.text.trim(),
+      );
+      if (_savedWhatsAppUri == null) {
+        if (mounted) {
+          setState(
+            () => _error =
+                '$result The WhatsApp contact number is not configured. Please contact Rooms.',
+          );
+        }
+        return;
+      }
+      await _openWhatsApp();
     } on RentalApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Could not send your request. Please try again.',
+          () => _error = _savedWhatsAppUri == null
+              ? 'Could not save your request. Please try again.'
+              : 'Your request was saved, but WhatsApp could not be opened. Try again.',
         );
       }
     } finally {
@@ -1313,7 +1408,7 @@ class _InspectionDialogState extends State<_InspectionDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('Request a viewing'),
+    title: const Text('Request Inspection'),
     content: SizedBox(
       width: 520,
       child: Form(
@@ -1360,10 +1455,16 @@ class _InspectionDialogState extends State<_InspectionDialog> {
               const SizedBox(height: 12),
               TextFormField(
                 controller: _date,
+                readOnly: true,
+                onTap: _selectDate,
                 decoration: const InputDecoration(
-                  labelText: 'Preferred viewing date (optional)',
-                  hintText: 'YYYY-MM-DD',
+                  labelText: 'Preferred inspection date',
+                  hintText: 'Select a date',
+                  suffixIcon: Icon(Icons.calendar_today_outlined),
                 ),
+                validator: (_) => _preferredDate == null
+                    ? 'Select an inspection date.'
+                    : null,
               ),
               const SizedBox(height: 12),
               TextFormField(
@@ -1389,8 +1490,22 @@ class _InspectionDialogState extends State<_InspectionDialog> {
         child: const Text('Cancel'),
       ),
       FilledButton(
-        onPressed: _submitting ? null : _submit,
-        child: Text(_submitting ? 'Sending…' : 'Send viewing request'),
+        onPressed: _submitting
+            ? null
+            : !_requestSaved
+            ? _submit
+            : _savedWhatsAppUri == null
+            ? null
+            : _openWhatsApp,
+        child: Text(
+          _submitting
+              ? 'Sending…'
+              : !_requestSaved
+              ? 'Send Request'
+              : _savedWhatsAppUri == null
+              ? 'Request Saved'
+              : 'Open WhatsApp',
+        ),
       ),
     ],
   );

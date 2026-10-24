@@ -48,10 +48,11 @@ void main() {
     },
   );
 
-  testWidgets('viewing requests submit renter details through the API', (
+  testWidgets('inspection requests save and open WhatsApp with details', (
     tester,
   ) async {
     final requests = <http.Request>[];
+    final whatsappUris = <Uri>[];
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -78,6 +79,10 @@ void main() {
               }
               return http.Response('{}', 404);
             }),
+            whatsappLauncher: (uri) async {
+              whatsappUris.add(uri);
+              return true;
+            },
           ),
         ),
       ),
@@ -85,12 +90,12 @@ void main() {
     await tester.pumpAndSettle();
 
     await tester.scrollUntilVisible(
-      find.text('Request a viewing'),
+      find.text('Request Inspection'),
       500,
       scrollable: find.byType(Scrollable).first,
     );
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Request a viewing'));
+    await tester.tap(find.text('Request Inspection'));
     await tester.pumpAndSettle();
 
     await tester.enterText(find.byType(TextFormField).at(0), 'Guest Example');
@@ -99,7 +104,11 @@ void main() {
       'guest@example.com',
     );
     await tester.enterText(find.byType(TextFormField).at(2), '+2348012345678');
-    await tester.tap(find.text('Send viewing request'));
+    await tester.tap(find.byIcon(Icons.calendar_today_outlined));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('OK'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send Request'));
     await tester.pumpAndSettle();
 
     final submission = requests.last;
@@ -107,9 +116,21 @@ void main() {
     expect(submission.headers['X-CSRFToken'], 'csrf-test-token');
     expect(jsonDecode(submission.body)['guest_name'], 'Guest Example');
     expect(
-      find.textContaining('Your viewing request has been sent'),
-      findsOneWidget,
+      jsonDecode(submission.body)['preferred_date'],
+      matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')),
     );
+    expect(whatsappUris, hasLength(1));
+    expect(whatsappUris.single.host, 'wa.me');
+    expect(whatsappUris.single.path, '/2348127499576');
+    expect(
+      whatsappUris.single.queryParameters['text'],
+      contains('Property: Verified family home'),
+    );
+    expect(
+      whatsappUris.single.queryParameters['text'],
+      contains('Preferred inspection date:'),
+    );
+    expect(find.textContaining('Inspection request saved'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -122,6 +143,7 @@ MockClient _mockClient() => MockClient((request) async {
 http.Response _listingResponse() => http.Response(
   jsonEncode({
     'csrf_token': 'csrf-test-token',
+    'inspection_whatsapp': '+2348127499576',
     'cities': ['Lagos'],
     'listing_count': 1,
     'listings': [

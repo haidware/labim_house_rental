@@ -83,7 +83,11 @@ rendered into HTML or sent to browser JavaScript.
    login. Use a long, randomly generated password and keep it private. Staff
    use the custom portal at `/staff/records/`; the Django admin login is no
    longer used in REST mode.
-4. Owners request an account through the existing form, confirm their account
+4. Set `RENTAL_INSPECTION_WHATSAPP_NUMBER` to the Rooms WhatsApp number in
+   international format. Inspection requests are saved first, then WhatsApp
+   opens with the selected property, date, and customer details prefilled for
+   the customer to send.
+5. Owners request an account through the existing form, confirm their account
    according to the Supabase Auth project's email-confirmation settings, and
    wait for staff approval before signing in. Staff can approve owners and
    manage listings and requests in the portal.

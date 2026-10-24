@@ -83,6 +83,11 @@ class OwnerListingForm(forms.ModelForm):
 
 
 class PublicInspectionRequestForm(forms.ModelForm):
+    preferred_date = forms.DateField(
+        required=True,
+        widget=forms.DateInput(attrs={"type": "date"}),
+    )
+
     class Meta:
         model = InspectionRequest
         fields = (

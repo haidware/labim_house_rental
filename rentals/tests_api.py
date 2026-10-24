@@ -68,6 +68,10 @@ class SupabaseApiWorkflowTests(TestCase):
             "https://storage.example/house.jpg",
         )
         self.assertEqual(data["listings"][0]["monthly_rent"], 100000)
+        self.assertEqual(
+            data["inspection_whatsapp"],
+            "+2348127499576",
+        )
         self.assertTrue(data["csrf_token"])
         self.assertIn("csrftoken", response.cookies)
 
@@ -208,11 +212,37 @@ class SupabaseApiWorkflowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertIn("viewing request has been sent", response.json()["message"])
+        self.assertIn("inspection request was saved", response.json()["message"])
         table, values = insert_record.call_args.args
         self.assertEqual(table, "rental_inspection_requests")
         self.assertEqual(values["listing_id"], "listing-1")
         self.assertEqual(values["preferred_date"], "2026-11-01")
+
+    @patch("rentals.api_views.insert")
+    @patch("rentals.api_views.listing_by_slug")
+    def test_flutter_inspection_request_requires_a_date(
+        self,
+        listing_by_slug,
+        insert_record,
+    ):
+        listing_by_slug.return_value = {
+            "id": "listing-1",
+            "category": "home",
+            "transaction_type": "rent",
+        }
+        response = self.client.post(
+            reverse("public_api_inspection_request", args=("lagos-home",)),
+            data={
+                "guest_name": "Guest Example",
+                "email": "guest@example.com",
+                "phone": "+2348012345678",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("preferred_date", response.json()["errors"])
+        insert_record.assert_not_called()
 
     @patch("rentals.api_views.insert")
     def test_home_request_is_saved_in_supabase(self, insert_record):

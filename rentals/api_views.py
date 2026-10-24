@@ -218,6 +218,7 @@ def public_api_listings(request):
 
     return JsonResponse({
         "csrf_token": get_token(request),
+        "inspection_whatsapp": settings.RENTAL_INSPECTION_WHATSAPP_NUMBER,
         "listings": [
             {
                 "id": listing.get("id"),
@@ -317,7 +318,10 @@ def public_api_inspection_request(request, slug):
     form = PublicInspectionRequestForm(data=payload)
     if not form.is_valid():
         return JsonResponse(
-            {"error": "Check your contact details and try again.", "errors": _form_errors(form)},
+            {
+                "error": "Check your contact details and inspection date, then try again.",
+                "errors": _form_errors(form),
+            },
             status=400,
         )
     values = {
@@ -336,7 +340,12 @@ def public_api_inspection_request(request, slug):
             status=503,
         )
     return JsonResponse(
-        {"message": "Your viewing request has been sent to Rooms. Our team will contact you."},
+        {
+            "message": (
+                "Your inspection request was saved. Continue in WhatsApp "
+                "to send it to Rooms."
+            )
+        },
         status=201,
     )
 

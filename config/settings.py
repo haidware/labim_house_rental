@@ -72,6 +72,10 @@ SUPABASE_SERVICE_ROLE_KEY = (
     or os.getenv("SUPABASE_SECRET_KEY", "")
 )
 SUPABASE_STORAGE_BUCKET = "rental-listing-photos"
+RENTAL_INSPECTION_WHATSAPP_NUMBER = os.getenv(
+    "RENTAL_INSPECTION_WHATSAPP_NUMBER",
+    "+2348127499576",
+)
 supabase_api_values = (
     SUPABASE_URL,
     SUPABASE_ANON_KEY,
