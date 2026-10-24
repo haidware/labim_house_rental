@@ -48,6 +48,47 @@ void main() {
     },
   );
 
+  testWidgets('land tab shows published property sale listings', (
+    tester,
+  ) async {
+    final listingRequests = <http.Request>[];
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RentalHomePage(
+          landProperties: true,
+          api: RentalApi(
+            client: MockClient((request) async {
+              listingRequests.add(request);
+              return _landListingResponse();
+            }),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(listingRequests.single.url.queryParameters['category'], 'land');
+    expect(
+      listingRequests.single.url.queryParameters['transaction_type'],
+      'all',
+    );
+    expect(find.text('Find land and properties'), findsOneWidget);
+    await tester.scrollUntilVisible(
+      find.text('Lekki plot'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.pumpAndSettle();
+    expect(find.text('₦9,000,000 asking price'), findsOneWidget);
+    expect(find.text('Request Inspection'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
   testWidgets('inspection requests save and open WhatsApp with details', (
     tester,
   ) async {
@@ -160,6 +201,36 @@ http.Response _listingResponse() => http.Response(
         'bathrooms': 2,
         'annual_rent': 1200000,
         'monthly_rent': 100000,
+        'photos': [],
+      },
+    ],
+  }),
+  200,
+  headers: {'content-type': 'application/json'},
+);
+
+http.Response _landListingResponse() => http.Response(
+  jsonEncode({
+    'csrf_token': 'csrf-test-token',
+    'inspection_whatsapp': '+2348127499576',
+    'cities': ['Lagos'],
+    'listing_count': 1,
+    'listings': [
+      {
+        'id': 'land-1',
+        'slug': 'lekki-land',
+        'title': 'Lekki plot',
+        'description': 'Verified residential land.',
+        'address': 'Lekki Phase 1',
+        'city': 'Lagos',
+        'state': 'Lagos',
+        'category': 'land',
+        'transaction_type': 'sale',
+        'property_type': 'Residential land',
+        'bedrooms': 0,
+        'bathrooms': 0,
+        'annual_rent': 0,
+        'sale_price': 9000000,
         'photos': [],
       },
     ],

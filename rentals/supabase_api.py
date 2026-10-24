@@ -7,6 +7,8 @@ from django.core.exceptions import ImproperlyConfigured
 
 from supabase import create_client
 
+from .models import RentalListing
+
 
 @lru_cache(maxsize=1)
 def admin_client():
@@ -74,19 +76,22 @@ def owner_listings(owner_id):
     return rows("rental_listings", owner_auth_id=owner_id, limit=500)
 
 
-def public_listings():
-    result = (
+def public_listings(
+    category=RentalListing.Category.HOME,
+    transaction_type=RentalListing.TransactionType.RENT,
+):
+    query = (
         admin_client()
         .table("rental_listings")
         .select("*")
-        .eq("status", "published")
-        .eq("category", "home")
-        .eq("transaction_type", "rent")
-        .order("updated_at", desc=True)
-        .limit(500)
-        .execute()
-        .data
-    ) or []
+        .eq("status", RentalListing.PublicationStatus.PUBLISHED)
+        .eq("category", category)
+    )
+    if transaction_type:
+        query = query.eq("transaction_type", transaction_type)
+    result = (
+        query.order("updated_at", desc=True).limit(500).execute().data or []
+    )
     listing_ids = [listing["id"] for listing in result]
     photos_by_listing = {}
     if listing_ids:

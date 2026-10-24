@@ -75,6 +75,69 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertTrue(data["csrf_token"])
         self.assertIn("csrftoken", response.cookies)
 
+    @patch(
+        "rentals.api_views.public_listings",
+        return_value=[
+            {
+                "id": "land-1",
+                "slug": "lekki-land",
+                "title": "Lekki plot",
+                "description": "Verified plot.",
+                "address": "Lekki Phase 1",
+                "city": "Lagos",
+                "state": "Lagos",
+                "category": "land",
+                "transaction_type": "sale",
+                "property_type": "Residential land",
+                "sale_price": 9_000_000,
+                "photos": [],
+            },
+            {
+                "id": "land-2",
+                "slug": "ikeja-land",
+                "title": "Ikeja plot",
+                "description": "Another verified plot.",
+                "address": "Ikeja",
+                "city": "Lagos",
+                "state": "Lagos",
+                "category": "land",
+                "transaction_type": "sale",
+                "property_type": "Residential land",
+                "sale_price": 15_000_000,
+                "photos": [],
+            },
+        ],
+    )
+    def test_public_listings_api_returns_admin_published_land(self, public_listings):
+        response = self.client.get(
+            reverse("public_api_listings"),
+            {
+                "category": "land",
+                "transaction_type": "all",
+                "budget": "10000000",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        listing = response.json()["listings"][0]
+        self.assertEqual(listing["category"], "land")
+        self.assertEqual(listing["transaction_type"], "sale")
+        self.assertEqual(listing["sale_price"], 9_000_000)
+        public_listings.assert_called_once_with(category="land", transaction_type=None)
+
+    def test_land_path_serves_flutter_entrypoint(self):
+        with tempfile.TemporaryDirectory() as temp_directory:
+            build_directory = Path(temp_directory)
+            (build_directory / "index.html").write_text(
+                "<html>Rooms land properties</html>",
+                encoding="utf-8",
+            )
+            with self.settings(FLUTTER_WEB_BUILD_DIRECTORY=build_directory):
+                response = self.client.get("/land")
+
+            self.assertEqual(response.status_code, 200)
+            self.assertContains(response, "Rooms land properties")
+
     @patch("rentals.api_views.public_listings", return_value=[])
     def test_staff_session_keeps_customer_homepage_at_root(self, public_listings):
         session = self.client.session
@@ -217,6 +280,35 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertEqual(table, "rental_inspection_requests")
         self.assertEqual(values["listing_id"], "listing-1")
         self.assertEqual(values["preferred_date"], "2026-11-01")
+
+    @patch("rentals.api_views.insert")
+    @patch("rentals.api_views.listing_by_slug")
+    def test_flutter_inspection_request_accepts_published_land_for_sale(
+        self,
+        listing_by_slug,
+        insert_record,
+    ):
+        listing_by_slug.return_value = {
+            "id": "land-1",
+            "category": "land",
+            "transaction_type": "sale",
+        }
+        response = self.client.post(
+            reverse("public_api_inspection_request", args=("lekki-land",)),
+            data={
+                "guest_name": "Guest Example",
+                "email": "guest@example.com",
+                "phone": "+2348012345678",
+                "preferred_date": "2026-11-01",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            insert_record.call_args.args[1]["listing_id"],
+            "land-1",
+        )
 
     @patch("rentals.api_views.insert")
     @patch("rentals.api_views.listing_by_slug")

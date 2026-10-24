@@ -8,8 +8,10 @@ accounts to manage their listings.
 
 ## Features
 
-- Flutter web Rooms marketplace showing only Haidware-reviewed homes available for rent.
+- Flutter web Rooms marketplace showing Haidware-reviewed homes for rent and
+  land/property listings for rent or sale.
 - Home search by location, city, and maximum monthly rent.
+- Land/property search by location, city, listing type, and price at `/land`.
 - Public viewing requests saved for staff follow-up.
 - Home rental requests require property details and owner agreement to a
   verification visit; Rooms manages the visit, photos and listing setup.

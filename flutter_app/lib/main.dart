@@ -17,15 +17,23 @@ final _naira = NumberFormat.currency(
   decimalDigits: 0,
 );
 
-void main() => runApp(const RoomsRentalApp());
+void main() => runApp(
+  RoomsRentalApp(
+    landProperties: Uri.base.path.replaceFirst(RegExp(r'/$'), '') == '/land',
+  ),
+);
 
 class RoomsRentalApp extends StatelessWidget {
-  const RoomsRentalApp({super.key});
+  const RoomsRentalApp({super.key, this.landProperties = false});
+
+  final bool landProperties;
 
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'Rooms | Homes for rent',
+      title: landProperties
+          ? 'Rooms | Land and properties'
+          : 'Rooms | Homes for rent',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -45,7 +53,7 @@ class RoomsRentalApp extends StatelessWidget {
           ),
         ),
       ),
-      home: const RentalHomePage(),
+      home: RentalHomePage(landProperties: landProperties),
     );
   }
 }
@@ -63,6 +71,8 @@ class RentalListing {
     required this.bathrooms,
     required this.annualRent,
     required this.monthlyRent,
+    required this.transactionType,
+    required this.salePrice,
     required this.photos,
   });
 
@@ -78,6 +88,8 @@ class RentalListing {
     bathrooms: (json['bathrooms'] as num?)?.toInt() ?? 0,
     annualRent: (json['annual_rent'] as num?)?.toInt() ?? 0,
     monthlyRent: (json['monthly_rent'] as num?)?.toInt() ?? 0,
+    transactionType: json['transaction_type']?.toString() ?? 'rent',
+    salePrice: (json['sale_price'] as num?)?.toInt() ?? 0,
     photos: (json['photos'] as List<dynamic>? ?? const [])
         .whereType<Map<String, dynamic>>()
         .map((photo) => RentalPhoto.fromJson(photo))
@@ -95,7 +107,13 @@ class RentalListing {
   final int bathrooms;
   final int annualRent;
   final int monthlyRent;
+  final String transactionType;
+  final int salePrice;
   final List<RentalPhoto> photos;
+
+  String get priceLabel => transactionType == 'sale'
+      ? '${_naira.format(salePrice)} asking price'
+      : '${_naira.format(monthlyRent)} / approx. month';
 
   String get location => [
     if (address.isNotEmpty) address,
@@ -174,12 +192,16 @@ class RentalApi {
   }
 
   Future<({List<RentalListing> listings, List<String> cities})> loadListings({
+    String category = 'home',
+    String transactionType = 'rent',
     String location = '',
     String city = '',
     String budget = '',
   }) async {
     final response = await _client.get(
       _uri('/api/public/listings/', {
+        'category': category,
+        'transaction_type': transactionType,
         if (location.isNotEmpty) 'location': location,
         if (city.isNotEmpty) 'city': city,
         if (budget.isNotEmpty) 'budget': budget,
@@ -273,11 +295,15 @@ class RentalApi {
       'Inspection request',
       'Property: ${listing.title}',
       'Location: ${listing.location}',
+      'Listing type: ${listing.transactionType == 'sale' ? 'For sale' : 'For rent'}',
       if (listing.propertyType.isNotEmpty)
         'Property type: ${listing.propertyType}',
       if (listing.bedrooms > 0) 'Bedrooms: ${listing.bedrooms}',
       if (listing.bathrooms > 0) 'Bathrooms: ${listing.bathrooms}',
-      'Rent: ${_naira.format(listing.monthlyRent)} approx. per month',
+      if (listing.transactionType == 'sale')
+        'Asking price: ${_naira.format(listing.salePrice)}'
+      else
+        'Rent: ${_naira.format(listing.monthlyRent)} approx. per month',
       'Preferred inspection date: ${DateFormat('EEE, d MMM yyyy').format(preferredDate)}',
       'Customer: $guestName',
       'Customer phone: $phone',
@@ -294,9 +320,10 @@ class RentalApi {
 }
 
 class RentalHomePage extends StatefulWidget {
-  const RentalHomePage({super.key, this.api});
+  const RentalHomePage({super.key, this.api, this.landProperties = false});
 
   final RentalApi? api;
+  final bool landProperties;
 
   @override
   State<RentalHomePage> createState() => _RentalHomePageState();
@@ -309,6 +336,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
   List<RentalListing> _listings = const [];
   List<String> _cities = const [];
   String _budget = '';
+  String _transactionType = 'all';
   String? _error;
   bool _loading = true;
 
@@ -334,6 +362,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
     });
     try {
       final result = await _api.loadListings(
+        category: widget.landProperties ? 'land' : 'home',
+        transactionType: widget.landProperties ? _transactionType : 'rent',
         location: _locationController.text.trim(),
         city: _cityController.text.trim(),
         budget: _budget,
@@ -349,7 +379,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Could not load homes. Please try again shortly.',
+          () => _error =
+              'Could not load ${widget.landProperties ? 'properties' : 'homes'}. Please try again shortly.',
         );
       }
     } finally {
@@ -529,12 +560,17 @@ class _RentalHomePageState extends State<RentalHomePage> {
                     _openExternal('https://rooms-uamy.onrender.com/apartment'),
               ),
             ),
-            const SizedBox(width: 8),
-            const Expanded(
-              child: _RoomsCategoryTab(
-                label: 'Homes',
-                icon: Icons.home_outlined,
-                selected: true,
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: _RoomsCategoryTab(
+                  label: 'Homes',
+                  icon: Icons.home_outlined,
+                  selected: !widget.landProperties,
+                  onTap: widget.landProperties
+                      ? () => _openInternal('/')
+                      : null,
+                ),
               ),
             ),
             const SizedBox(width: 8),
@@ -542,9 +578,10 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: _RoomsCategoryTab(
                 label: 'Land/Properties',
                 icon: Icons.map_outlined,
-                onTap: () => _openExternal(
-                  'https://rooms-uamy.onrender.com/land-properties',
-                ),
+                selected: widget.landProperties,
+                onTap: widget.landProperties
+                    ? null
+                    : () => _openInternal('/land'),
               ),
             ),
           ],
@@ -581,7 +618,9 @@ class _RentalHomePageState extends State<RentalHomePage> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Find your next home',
+              widget.landProperties
+                  ? 'Find land and properties'
+                  : 'Find your next home',
               style: TextStyle(
                 color: _navy,
                 fontSize: MediaQuery.sizeOf(context).width < 520 ? 30 : 42,
@@ -593,9 +632,11 @@ class _RentalHomePageState extends State<RentalHomePage> {
               ),
             ),
             const SizedBox(height: 10),
-            const Text(
-              'Choose from homes available for rent, reviewed by Rooms.',
-              style: TextStyle(color: _muted, fontSize: 17, height: 1.5),
+            Text(
+              widget.landProperties
+                  ? 'Explore land and properties for rent or sale, reviewed by Rooms.'
+                  : 'Choose from homes available for rent, reviewed by Rooms.',
+              style: const TextStyle(color: _muted, fontSize: 17, height: 1.5),
             ),
             const SizedBox(height: 24),
             Container(
@@ -608,6 +649,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: LayoutBuilder(
                 builder: (context, constraints) {
                   final compact = constraints.maxWidth < 720;
+                  final budgetItems = _budgetOptions();
                   final fields = [
                     TextField(
                       controller: _locationController,
@@ -635,35 +677,43 @@ class _RentalHomePageState extends State<RentalHomePage> {
                       ],
                       onChanged: (value) => _cityController.text = value ?? '',
                     ),
+                    if (widget.landProperties)
+                      DropdownButtonFormField<String>(
+                        isExpanded: true,
+                        initialValue: _transactionType,
+                        decoration: const InputDecoration(
+                          labelText: 'Listing type',
+                          prefixIcon: Icon(Icons.sell_outlined),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'all',
+                            child: Text('Rent or sale'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'rent',
+                            child: Text('For rent'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'sale',
+                            child: Text('For sale'),
+                          ),
+                        ],
+                        onChanged: (value) => setState(() {
+                          _transactionType = value ?? 'all';
+                          _budget = '';
+                        }),
+                      ),
                     DropdownButtonFormField<String>(
+                      isExpanded: true,
                       initialValue: _budget,
-                      decoration: const InputDecoration(
-                        labelText: 'Maximum monthly rent',
+                      decoration: InputDecoration(
+                        labelText: widget.landProperties
+                            ? 'Maximum price'
+                            : 'Maximum monthly rent',
                         prefixIcon: Icon(Icons.payments_outlined),
                       ),
-                      items: const [
-                        DropdownMenuItem(value: '', child: Text('Any budget')),
-                        DropdownMenuItem(
-                          value: '30000',
-                          child: Text('Up to ₦30,000'),
-                        ),
-                        DropdownMenuItem(
-                          value: '50000',
-                          child: Text('Up to ₦50,000'),
-                        ),
-                        DropdownMenuItem(
-                          value: '100000',
-                          child: Text('Up to ₦100,000'),
-                        ),
-                        DropdownMenuItem(
-                          value: '250000',
-                          child: Text('Up to ₦250,000'),
-                        ),
-                        DropdownMenuItem(
-                          value: '500000',
-                          child: Text('Up to ₦500,000'),
-                        ),
-                      ],
+                      items: budgetItems,
                       onChanged: (value) =>
                           setState(() => _budget = value ?? ''),
                     ),
@@ -677,13 +727,17 @@ class _RentalHomePageState extends State<RentalHomePage> {
                         SizedBox(
                           width: compact
                               ? constraints.maxWidth
-                              : (constraints.maxWidth - 220) / 3,
+                              : (constraints.maxWidth - 220) / fields.length,
                           child: field,
                         ),
                       FilledButton.icon(
                         onPressed: _loadListings,
                         icon: const Icon(Icons.search),
-                        label: const Text('Search homes'),
+                        label: Text(
+                          widget.landProperties
+                              ? 'Search properties'
+                              : 'Search homes',
+                        ),
                         style: FilledButton.styleFrom(
                           minimumSize: const Size(180, 56),
                           backgroundColor: _teal,
@@ -700,6 +754,56 @@ class _RentalHomePageState extends State<RentalHomePage> {
     ),
   );
 
+  List<DropdownMenuItem<String>> _budgetOptions() {
+    if (!widget.landProperties) {
+      return const [
+        DropdownMenuItem(value: '', child: Text('Any budget')),
+        DropdownMenuItem(value: '30000', child: Text('Up to ₦30,000')),
+        DropdownMenuItem(value: '50000', child: Text('Up to ₦50,000')),
+        DropdownMenuItem(value: '100000', child: Text('Up to ₦100,000')),
+        DropdownMenuItem(value: '250000', child: Text('Up to ₦250,000')),
+        DropdownMenuItem(value: '500000', child: Text('Up to ₦500,000')),
+      ];
+    }
+    if (_transactionType == 'rent') {
+      return const [
+        DropdownMenuItem(value: '', child: Text('Any budget')),
+        DropdownMenuItem(value: '30000', child: Text('Up to ₦30,000 / month')),
+        DropdownMenuItem(value: '50000', child: Text('Up to ₦50,000 / month')),
+        DropdownMenuItem(
+          value: '100000',
+          child: Text('Up to ₦100,000 / month'),
+        ),
+        DropdownMenuItem(
+          value: '250000',
+          child: Text('Up to ₦250,000 / month'),
+        ),
+        DropdownMenuItem(
+          value: '500000',
+          child: Text('Up to ₦500,000 / month'),
+        ),
+      ];
+    }
+    const prices = [
+      1000000,
+      5000000,
+      10000000,
+      25000000,
+      50000000,
+      100000000,
+      250000000,
+      500000000,
+    ];
+    return [
+      const DropdownMenuItem(value: '', child: Text('Any price')),
+      for (final price in prices)
+        DropdownMenuItem(
+          value: '$price',
+          child: Text('Up to ${_naira.format(price)}'),
+        ),
+    ];
+  }
+
   Widget _buildResultsHeader() => Padding(
     padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
     child: Center(
@@ -707,13 +811,15 @@ class _RentalHomePageState extends State<RentalHomePage> {
         constraints: const BoxConstraints(maxWidth: 1100),
         child: Row(
           children: [
-            const Expanded(
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    'Homes available for rent',
-                    style: TextStyle(
+                    widget.landProperties
+                        ? 'Land and properties'
+                        : 'Homes available for rent',
+                    style: const TextStyle(
                       color: _navy,
                       fontSize: 25,
                       fontWeight: FontWeight.w700,
@@ -721,15 +827,19 @@ class _RentalHomePageState extends State<RentalHomePage> {
                   ),
                   SizedBox(height: 4),
                   Text(
-                    'Haidware-reviewed listings. Rent is shown as an approximate monthly equivalent.',
-                    style: TextStyle(color: _muted, fontSize: 13),
+                    widget.landProperties
+                        ? 'Haidware-reviewed properties for rent or sale.'
+                        : 'Haidware-reviewed listings. Rent is shown as an approximate monthly equivalent.',
+                    style: const TextStyle(color: _muted, fontSize: 13),
                   ),
                 ],
               ),
             ),
             if (!_loading)
               Chip(
-                label: Text('${_listings.length} homes'),
+                label: Text(
+                  '${_listings.length} ${widget.landProperties ? 'properties' : 'homes'}',
+                ),
                 backgroundColor: _pale,
                 side: BorderSide.none,
               ),
@@ -772,14 +882,14 @@ class _RentalHomePageState extends State<RentalHomePage> {
         children: [
           const Icon(Icons.home_work_outlined, color: _teal, size: 42),
           const SizedBox(height: 12),
-          const Text(
-            'No reviewed homes match your search yet',
+          Text(
+            'No reviewed ${widget.landProperties ? 'properties' : 'homes'} match your search yet',
             textAlign: TextAlign.center,
             style: TextStyle(fontSize: 19, fontWeight: FontWeight.w700),
           ),
           const SizedBox(height: 8),
           const Text(
-            'Try another location or budget. Only published properties are shown here.',
+            'Try another location or price. Only published properties are shown here.',
             textAlign: TextAlign.center,
             style: TextStyle(color: _muted, height: 1.5),
           ),
@@ -806,18 +916,26 @@ class _RentalHomePageState extends State<RentalHomePage> {
           builder: (context, constraints) {
             final cards = [
               _InfoCard(
-                title: 'How Rooms works',
-                child: const Column(
+                title: widget.landProperties
+                    ? 'How Rooms reviews properties'
+                    : 'How Rooms works',
+                child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     _StepText(
-                      'Owners share the address, property type and contact number.',
+                      widget.landProperties
+                          ? 'Property owners request a land/property account.'
+                          : 'Owners share the address, property type and contact number.',
                     ),
                     _StepText(
-                      'Rooms contacts the owner and visits to verify the home.',
+                      widget.landProperties
+                          ? 'Haidware staff review owner and property details.'
+                          : 'Rooms contacts the owner and visits to verify the home.',
                     ),
                     _StepText(
-                      'Rooms handles property photos and prepares listing details.',
+                      widget.landProperties
+                          ? 'Approved owners submit land or property listings.'
+                          : 'Rooms handles property photos and prepares listing details.',
                     ),
                     _StepText(
                       'The verified listing is reviewed before it is published.',
@@ -830,21 +948,37 @@ class _RentalHomePageState extends State<RentalHomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    const Text(
-                      'Send us the property address and your contact details. Rooms will arrange a visit and handle verification, photos and listing setup.',
+                    Text(
+                      widget.landProperties
+                          ? 'Land and property listings use the same Rooms review portal. Request an owner account, then submit listings for Haidware staff review.'
+                          : 'Send us the property address and your contact details. Rooms will arrange a visit and handle verification, photos and listing setup.',
                       style: TextStyle(color: _muted, height: 1.5),
                     ),
                     const SizedBox(height: 14),
                     FilledButton(
-                      onPressed: _showPropertyRequest,
+                      onPressed: widget.landProperties
+                          ? () => _openInternal(
+                              '/accounts/request-owner-account/?owner_type=land',
+                            )
+                          : _showPropertyRequest,
                       style: FilledButton.styleFrom(backgroundColor: _teal),
-                      child: const Text('List a home for rent'),
+                      child: Text(
+                        widget.landProperties
+                            ? 'Request land/property account'
+                            : 'List a home for rent',
+                      ),
                     ),
                     TextButton(
-                      onPressed: () => _openInternal(
-                        '/accounts/request-owner-account/?owner_type=land',
+                      onPressed: widget.landProperties
+                          ? () => _openInternal('/')
+                          : () => _openInternal(
+                              '/accounts/request-owner-account/?owner_type=land',
+                            ),
+                      child: Text(
+                        widget.landProperties
+                            ? 'Browse homes for rent →'
+                            : 'List land or property →',
                       ),
-                      child: const Text('List land or property →'),
                     ),
                   ],
                 ),
@@ -1013,7 +1147,7 @@ class _ListingCard extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  '${_naira.format(listing.monthlyRent)} / approx. month',
+                  listing.priceLabel,
                   style: const TextStyle(
                     color: _navy,
                     fontSize: 20,

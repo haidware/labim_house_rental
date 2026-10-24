@@ -178,12 +178,32 @@ def public_api_csrf_token(request):
 @require_GET
 @ensure_csrf_cookie
 def public_api_listings(request):
+    category = request.GET.get("category", RentalListing.Category.HOME)
+    transaction_type = request.GET.get("transaction_type", "")
+    allowed_categories = {choice for choice, _ in RentalListing.Category.choices}
+    allowed_transactions = {
+        choice for choice, _ in RentalListing.TransactionType.choices
+    }
+    if category not in allowed_categories:
+        return JsonResponse({"error": "Choose a valid property category."}, status=400)
+    if category == RentalListing.Category.HOME:
+        transaction_type = RentalListing.TransactionType.RENT
+    elif transaction_type not in {"", "all", *allowed_transactions}:
+        return JsonResponse({"error": "Choose a valid listing type."}, status=400)
+
     try:
-        listings = public_listings()
+        listings = public_listings(
+            category=category,
+            transaction_type=(
+                transaction_type
+                if transaction_type in allowed_transactions
+                else None
+            ),
+        )
     except APIError:
         logger.exception("Could not load public rental listings.")
         return JsonResponse(
-            {"error": "Homes are temporarily unavailable. Please try again."},
+            {"error": "Listings are temporarily unavailable. Please try again."},
             status=503,
         )
 
@@ -195,8 +215,25 @@ def public_api_listings(request):
     location = request.GET.get("location", "").strip().casefold()
     city = request.GET.get("city", "").strip().casefold()
     budget = request.GET.get("budget", "").strip()
-    budget_options = {"30000", "50000", "100000", "250000", "500000"}
-    max_annual_rent = int(budget) * 12 if budget in budget_options else None
+    if category == RentalListing.Category.LAND:
+        budget_options = {
+            "30000",
+            "50000",
+            "100000",
+            "250000",
+            "500000",
+            "1000000",
+            "5000000",
+            "10000000",
+            "25000000",
+            "50000000",
+            "100000000",
+            "250000000",
+            "500000000",
+        }
+    else:
+        budget_options = {"30000", "50000", "100000", "250000", "500000"}
+    max_price = int(budget) if budget in budget_options else None
     if location:
         listings = [
             listing for listing in listings
@@ -210,10 +247,18 @@ def public_api_listings(request):
             listing for listing in listings
             if str(listing.get("city") or "").casefold() == city
         ]
-    if max_annual_rent is not None:
+    if max_price is not None:
         listings = [
             listing for listing in listings
-            if (listing.get("annual_rent") or 0) <= max_annual_rent
+            if (
+                (
+                    ((listing.get("annual_rent") or 0) + 11) // 12
+                    if listing.get("transaction_type")
+                    == RentalListing.TransactionType.RENT
+                    else listing.get("sale_price") or 0
+                )
+                <= max_price
+            )
         ]
 
     return JsonResponse({
@@ -229,9 +274,12 @@ def public_api_listings(request):
                 "city": listing.get("city", ""),
                 "state": listing.get("state", ""),
                 "property_type": listing.get("property_type", ""),
+                "category": listing.get("category", category),
+                "transaction_type": listing.get("transaction_type", "rent"),
                 "bedrooms": listing.get("bedrooms", 0),
                 "bathrooms": listing.get("bathrooms", 0),
                 "annual_rent": listing.get("annual_rent") or 0,
+                "sale_price": listing.get("sale_price") or 0,
                 "monthly_rent": (
                     (listing.get("annual_rent") or 0) + 11
                 ) // 12,
@@ -310,8 +358,13 @@ def public_api_inspection_request(request, slug):
     listing = listing_by_slug(slug, published_only=True)
     if (
         not listing
-        or listing.get("category") != RentalListing.Category.HOME
-        or listing.get("transaction_type") != RentalListing.TransactionType.RENT
+        or listing.get("category")
+        not in (RentalListing.Category.HOME, RentalListing.Category.LAND)
+        or listing.get("transaction_type")
+        not in (
+            RentalListing.TransactionType.RENT,
+            RentalListing.TransactionType.SALE,
+        )
     ):
         raise Http404
 

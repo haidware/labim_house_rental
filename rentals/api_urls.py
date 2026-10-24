@@ -32,6 +32,7 @@ urlpatterns = [
         name="public_api_inspection_request",
     ),
     path("", api_views.home, name="home"),
+    re_path(r"^land/?$", api_views.home, name="land_properties"),
     path(
         "homes/<slug:slug>/inspection/",
         api_views.public_inspection_request,
