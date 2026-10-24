@@ -56,6 +56,7 @@ class SupabaseApiWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Lekki family home")
+        self.assertContains(response, 'href="https://rooms-uamy.onrender.com/">Hotels</a>')
         self.assertNotContains(response, "Abuja family home")
         self.assertContains(response, "https://storage.example/house.jpg")
         self.assertEqual(response.context["listing_count"], 1)
