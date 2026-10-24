@@ -3,7 +3,6 @@ import secrets
 from pathlib import Path
 from urllib.parse import urlsplit
 
-import dj_database_url
 from dotenv import load_dotenv
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -63,6 +62,60 @@ INSTALLED_APPS = [
     "rentals.apps.RentalsConfig",
 ]
 
+SUPABASE_URL = os.getenv("SUPABASE_URL", "").rstrip("/")
+SUPABASE_ANON_KEY = (
+    os.getenv("SUPABASE_ANON_KEY", "")
+    or os.getenv("SUPABASE_PUBLISHABLE_KEY", "")
+)
+SUPABASE_SERVICE_ROLE_KEY = (
+    os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+    or os.getenv("SUPABASE_SECRET_KEY", "")
+)
+SUPABASE_STORAGE_BUCKET = "rental-listing-photos"
+supabase_api_values = (
+    SUPABASE_URL,
+    SUPABASE_ANON_KEY,
+    SUPABASE_SERVICE_ROLE_KEY,
+)
+if any(supabase_api_values) and not all(supabase_api_values):
+    raise RuntimeError(
+        "Set SUPABASE_URL, SUPABASE_ANON_KEY (or SUPABASE_PUBLISHABLE_KEY), "
+        "and SUPABASE_SERVICE_ROLE_KEY (or SUPABASE_SECRET_KEY) together."
+    )
+SUPABASE_API_ENABLED = bool(
+    all(supabase_api_values)
+)
+RENTAL_STAFF_USERNAME = os.getenv("RENTAL_STAFF_USERNAME", "")
+RENTAL_STAFF_PASSWORD = os.getenv("RENTAL_STAFF_PASSWORD", "")
+if SUPABASE_API_ENABLED and not (
+    RENTAL_STAFF_USERNAME and RENTAL_STAFF_PASSWORD
+):
+    raise RuntimeError(
+        "Configure RENTAL_STAFF_USERNAME and RENTAL_STAFF_PASSWORD when using Supabase REST mode."
+    )
+if SUPABASE_API_ENABLED and len(RENTAL_STAFF_PASSWORD) < 20:
+    raise RuntimeError("RENTAL_STAFF_PASSWORD must be at least 20 characters long.")
+if IS_RENDER:
+    missing_supabase_settings = [
+        name
+        for name, value in (
+            ("SUPABASE_URL", SUPABASE_URL),
+            ("SUPABASE_ANON_KEY or SUPABASE_PUBLISHABLE_KEY", SUPABASE_ANON_KEY),
+            (
+                "SUPABASE_SERVICE_ROLE_KEY or SUPABASE_SECRET_KEY",
+                SUPABASE_SERVICE_ROLE_KEY,
+            ),
+            ("RENTAL_STAFF_USERNAME", RENTAL_STAFF_USERNAME),
+            ("RENTAL_STAFF_PASSWORD", RENTAL_STAFF_PASSWORD),
+        )
+        if not value
+    ]
+    if missing_supabase_settings:
+        raise RuntimeError(
+            "Configure these private Render environment variables: "
+            + ", ".join(missing_supabase_settings)
+        )
+
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -94,12 +147,12 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,
-        conn_health_checks=True,
-    )
+    "default": {
+        "ENGINE": "django.db.backends.sqlite3",
+        "NAME": BASE_DIR / "db.sqlite3",
+    }
 }
+SESSION_ENGINE = "django.contrib.sessions.backends.signed_cookies"
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

@@ -26,7 +26,7 @@
       <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
     </header>
     <main>
-      <h1>Welcome, {{ request.user.first_name|default:request.user.username }}</h1>
+      <h1>Welcome, {{ owner_name }}</h1>
       <p>Manage your home listings. New and updated listings are reviewed by Haidware before publication.</p>
       {% if messages %}{% for message in messages %}<p>{{ message }}</p>{% endfor %}{% endif %}
       <div class="cards">
@@ -46,7 +46,7 @@
                   <td>{{ listing.title }}</td>
                   <td>{{ listing.city }}, {{ listing.state }}</td>
                   <td>{% if listing.annual_rent %}NGN {{ listing.annual_rent }}{% else %}—{% endif %}</td>
-                  <td>{{ listing.get_status_display }}</td>
+                  <td>{{ listing.status_display }}</td>
                   <td>{% if listing.status == "draft" or listing.status == "pending_review" or listing.status == "needs_changes" %}<a href="{% url 'owner_listing_edit' listing.pk %}">Edit</a>{% endif %}</td>
                 </tr>
               {% endfor %}

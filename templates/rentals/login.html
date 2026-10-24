@@ -17,12 +17,12 @@
   <body>
     <main>
       <h1>Sign in</h1>
-      <p>Haidware staff and approved property owners can sign in here.</p>
+      <p>Rooms staff use their staff username. Approved land/property owners use their account email.</p>
       {% if form.errors %}<p class="error">Sign-in failed. Check your details or contact Haidware if your owner account is awaiting approval.</p>{% endif %}
       <form method="post">
         {% csrf_token %}
         <input type="hidden" name="next" value="{{ next }}">
-        <label for="{{ form.username.id_for_label }}">Username</label>
+        <label for="{{ form.username.id_for_label }}">Email or staff username</label>
         {{ form.username }}
         <label for="{{ form.password.id_for_label }}">Password</label>
         {{ form.password }}

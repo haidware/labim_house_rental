@@ -26,7 +26,7 @@
       <form method="post" action="{% url 'accounts:logout' %}">{% csrf_token %}<button type="submit">Sign out</button></form>
     </header>
     <main>
-      <h1>Welcome, {{ request.user.first_name|default:request.user.username }}</h1>
+      <h1>Welcome, {{ owner_name }}</h1>
       <p>Submit land for rent or sale. Haidware reviews every listing before it becomes public.</p>
       {% if messages %}{% for message in messages %}<p>{{ message }}</p>{% endfor %}{% endif %}
       <div class="cards">
@@ -44,10 +44,10 @@
               {% for listing in listings %}
                 <tr>
                   <td>{{ listing.title }}</td>
-                  <td>{{ listing.get_transaction_type_display }}</td>
+                  <td>{{ listing.transaction_type_display }}</td>
                   <td>{{ listing.city }}, {{ listing.state }}</td>
                   <td>{% if listing.transaction_type == "sale" %}NGN {{ listing.sale_price }}{% else %}NGN {{ listing.annual_rent }} / year{% endif %}</td>
-                  <td>{{ listing.get_status_display }}</td>
+                  <td>{{ listing.status_display }}</td>
                   <td>{% if listing.status == "draft" or listing.status == "pending_review" or listing.status == "needs_changes" %}<a href="{% url 'owner_listing_edit' listing.pk %}">Edit</a>{% endif %}</td>
                 </tr>
               {% endfor %}

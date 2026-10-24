@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% if listing %}Edit{% else %}Create{% endif %} listing | Rooms</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      main { max-width: 760px; margin: 4vh auto; padding: 28px; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
+      label { display: block; margin-top: 14px; font-weight: 600; }
+      input, select, textarea { box-sizing: border-box; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #bdcbd4; border-radius: 6px; }
+      button { margin-top: 18px; padding: 10px 14px; border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 600; cursor: pointer; }
+      a { color: #17607a; }
+      .errors { color: #9a2f25; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>{% if listing %}Edit{% else %}Create{% endif %} rental listing</h1>
+      <p>Rooms manages property verification, photos, and publication status.</p>
+      <form method="post" enctype="multipart/form-data">
+        {% csrf_token %}
+        {% for error in form.non_field_errors %}<p class="errors">{{ error }}</p>{% endfor %}
+        {% for field in form %}
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+          {{ field }}
+          {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+        {% endfor %}
+        <p>Upload up to three valid JPG, PNG, or WEBP photos (5 MB maximum each).</p>
+        <button type="submit" name="action" value="save">Save listing</button>
+      </form>
+      <p><a href="{% url 'staff_records' %}">Back to rental records</a></p>
+    </main>
+  </body>
+</html>

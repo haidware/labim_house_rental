@@ -1,6 +1,7 @@
 from django.contrib import admin
 from django.contrib.auth import views as auth_views
 from django.urls import include, path
+from django.conf import settings
 
 from rentals import views
 
@@ -48,5 +49,9 @@ urlpatterns = [
         views.owner_listing_edit,
         name="owner_listing_edit",
     ),
-    path("admin/", admin.site.urls),
 ]
+
+if settings.SUPABASE_API_ENABLED:
+    from rentals.api_urls import urlpatterns
+else:
+    urlpatterns.append(path("admin/", admin.site.urls))

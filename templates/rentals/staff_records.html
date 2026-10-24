@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rental records | Rooms</title>
+    <style>
+      :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
+      body { margin: 0; }
+      header { display: flex; justify-content: space-between; align-items: center; padding: 20px max(24px, calc((100% - 1120px) / 2)); background: white; border-bottom: 1px solid #dce5eb; }
+      main { max-width: 1120px; margin: 30px auto; padding: 0 20px; }
+      section { margin: 18px 0; padding: 20px; overflow-x: auto; border: 1px solid #dce5eb; border-radius: 14px; background: white; }
+      table { width: 100%; border-collapse: collapse; }
+      th, td { padding: 11px 9px; border-bottom: 1px solid #e7edf1; text-align: left; vertical-align: top; }
+      textarea { width: 200px; min-height: 54px; }
+      select, button { padding: 8px; }
+      button { border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 650; cursor: pointer; }
+      a { color: #17607a; }
+      .record-form { display: grid; gap: 7px; min-width: 150px; }
+      .message { padding: 10px 13px; border-radius: 8px; background: white; }
+      @media (max-width: 600px) { header { padding: 16px; } main { margin-top: 20px; } }
+    </style>
+  </head>
+  <body>
+    <header>
+      <strong>Rooms rental management</strong>
+      <nav><a href="{% url 'dashboard' %}">Dashboard</a>
+        <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
+          {% csrf_token %}<button type="submit">Sign out</button>
+        </form>
+      </nav>
+    </header>
+    <main>
+      <h1>Manage rental records</h1>
+      {% for message in messages %}<p class="message">{{ message }}</p>{% endfor %}
+
+      <section>
+        <h2>Home verification requests</h2>
+        {% if property_requests %}
+          <table>
+            <thead><tr><th>Owner</th><th>Contact</th><th>Property</th><th>Terms</th><th>Status and notes</th></tr></thead>
+            <tbody>
+              {% for item in property_requests %}
+                <tr>
+                  <td>{{ item.owner_name }}</td><td>{{ item.phone }}</td>
+                  <td>{{ item.property_type }}<br>{{ item.address }}</td>
+                  <td>{% if item.terms_accepted %}Accepted{% else %}Not accepted{% endif %}<br>{{ item.terms_accepted_at }}</td>
+                  <td>
+                    <form class="record-form" method="post" action="{% url 'staff_update_record' 'property-request' item.id %}">
+                      {% csrf_token %}
+                      <select name="status">{% for value,label in property_request_statuses %}<option value="{{ value }}"{% if value == item.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                      <textarea name="staff_notes" placeholder="Private staff notes">{{ item.staff_notes }}</textarea>
+                      <button type="submit">Save</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}<p>No home verification requests.</p>{% endif %}
+      </section>
+
+      <section>
+        <h2>Viewing requests</h2>
+        {% if inspections %}
+          <table>
+            <thead><tr><th>Guest</th><th>Property</th><th>Contact</th><th>Status and notes</th></tr></thead>
+            <tbody>
+              {% for item in inspections %}
+                <tr>
+                  <td>{{ item.guest_name }}<br>{{ item.email }}</td>
+                  <td>{{ item.listing.title|default:"Listing unavailable" }}<br>{{ item.preferred_date|default:"Date not specified" }}</td>
+                  <td>{{ item.phone }}</td>
+                  <td>
+                    <form class="record-form" method="post" action="{% url 'staff_update_record' 'inspection' item.id %}">
+                      {% csrf_token %}
+                      <select name="status">{% for value,label in inspection_statuses %}<option value="{{ value }}"{% if value == item.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                      <textarea name="staff_notes" placeholder="Private staff notes">{{ item.staff_notes }}</textarea>
+                      <button type="submit">Save</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}<p>No viewing requests.</p>{% endif %}
+      </section>
+
+      <section>
+        <h2>Owner account requests</h2>
+        {% if owners %}
+          <table>
+            <thead><tr><th>Owner</th><th>Type</th><th>Phone</th><th>Status</th></tr></thead>
+            <tbody>
+              {% for item in owners %}
+                <tr>
+                  <td>{{ item.first_name }} {{ item.last_name }}<br>{{ item.email }}</td>
+                  <td>{{ item.owner_type }}</td><td>{{ item.phone }}</td>
+                  <td>
+                    <form class="record-form" method="post" action="{% url 'staff_update_record' 'owner' item.user_id %}">
+                      {% csrf_token %}
+                      <select name="status">{% for value,label in owner_statuses %}<option value="{{ value }}"{% if value == item.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                      <button type="submit">Save</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}<p>No owner account requests.</p>{% endif %}
+      </section>
+
+      <section>
+        <h2>Listings</h2>
+        <p><a href="{% url 'staff_listing_create' %}">Create a listing after property verification</a></p>
+        {% if listings %}
+          <table>
+            <thead><tr><th>Listing</th><th>Type</th><th>Location</th><th>Price</th><th>Publication status</th></tr></thead>
+            <tbody>
+              {% for item in listings %}
+                <tr>
+                  <td><a href="{% url 'staff_listing_edit' item.id %}">{{ item.title }}</a></td><td>{{ item.category }} / {{ item.transaction_type }}</td>
+                  <td>{{ item.city }}, {{ item.state }}</td>
+                  <td>{% if item.transaction_type == "sale" %}NGN {{ item.sale_price }}{% else %}NGN {{ item.annual_rent }} / year{% endif %}</td>
+                  <td>
+                    <form class="record-form" method="post" action="{% url 'staff_update_record' 'listing' item.id %}">
+                      {% csrf_token %}
+                      <select name="status">{% for value,label in listing_statuses %}<option value="{{ value }}"{% if value == item.status %} selected{% endif %}>{{ label }}</option>{% endfor %}</select>
+                      <button type="submit">Save</button>
+                    </form>
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}<p>No listings yet.</p>{% endif %}
+      </section>
+    </main>
+  </body>
+</html>

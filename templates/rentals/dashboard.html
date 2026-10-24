@@ -44,9 +44,9 @@
               {% for inspection in recent_inspections %}
                 <tr>
                   <td>{{ inspection.guest_name }}</td>
-                  <td>{{ inspection.listing.title }}</td>
+                  <td>{{ inspection.listing.title|default:"Listing unavailable" }}</td>
                   <td>{{ inspection.preferred_date|default:"Not specified" }}</td>
-                  <td>{{ inspection.get_status_display }}</td>
+                  <td>{{ inspection.status_display }}</td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -55,13 +55,17 @@
           <p>No inspection requests yet.</p>
         {% endif %}
         <p>
-          <a href="{% url 'admin:rentals_propertylistingrequest_changelist' %}">Follow up home requests</a>
-          &middot;
-          <a href="{% url 'admin:rentals_ownerprofile_changelist' %}">Review owner account requests</a>
-          &middot;
-          <a href="{% url 'admin:rentals_rentallisting_changelist' %}">Review and publish listings</a>
-          &middot;
-          <a href="{% url 'admin:index' %}">Open administration</a>
+          {% if api_backend %}
+            <a href="{% url 'staff_records' %}">Manage property requests, owners and listings</a>
+          {% else %}
+            <a href="{% url 'admin:rentals_propertylistingrequest_changelist' %}">Follow up home requests</a>
+            &middot;
+            <a href="{% url 'admin:rentals_ownerprofile_changelist' %}">Review owner account requests</a>
+            &middot;
+            <a href="{% url 'admin:rentals_rentallisting_changelist' %}">Review and publish listings</a>
+            &middot;
+            <a href="{% url 'admin:index' %}">Open administration</a>
+          {% endif %}
         </p>
         <form method="post" action="{% url 'accounts:logout' %}">
           {% csrf_token %}

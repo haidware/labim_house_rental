@@ -14,8 +14,9 @@ accounts to manage their listings.
 - Home rental requests require property details and owner agreement to a
   verification visit; Rooms manages the visit, photos and listing setup.
 - Staff track new home requests, contact owners, schedule visits and record
-  verification status in Django admin.
-- Owner account requests remain inactive until Haidware approves them in Django admin.
+  verification status in the Supabase-backed staff portal.
+- Owner account requests remain pending until Haidware approves them in the
+  staff portal.
 - Owners manage only their own listings and can save drafts or submit listings for review.
 - Haidware staff control publication; owners cannot publish listings themselves.
 - House-owner listings support rent. Land/property-owner listings support rent or sale.
@@ -24,8 +25,8 @@ accounts to manage their listings.
 - Multiple property photos per listing.
 - Inspection-request tracking with status, preferred date, contact details, and
   private staff notes.
-- Local SQLite for development and PostgreSQL configuration for a dedicated
-  Supabase project.
+- Supabase REST API and Storage for rental data, with SQLite retained for local
+  development and Django compatibility.
 
 ## Run locally
 
@@ -35,57 +36,77 @@ py -m venv .venv
 pip install -r requirements.txt
 Copy-Item .env.example .env
 python manage.py migrate
-python manage.py createsuperuser
 python manage.py runserver
 ```
 
 Open http://127.0.0.1:8000/ to browse published homes, request a viewing, or
 submit a home for Rooms to verify. Staff follow up on property visit requests,
-prepare and publish verified listings, and manage viewing requests in Django
-admin. Land/property owners can apply for an account and wait for Haidware
-approval; approved owners can manage listings on their role-specific dashboard.
+prepare and publish verified listings, and manage viewing requests in the
+staff portal. Land/property owners can apply for an account and wait for
+Haidware approval; approved owners can manage listings on their role-specific
+dashboard.
+For the local SQLite fallback only, create a Django staff account with
+`python manage.py createsuperuser` to use Django admin. REST mode uses the
+`RENTAL_STAFF_USERNAME` and `RENTAL_STAFF_PASSWORD` values instead.
 
-## Supabase setup
+## Supabase REST setup
 
 Use the dedicated rental Supabase project, separate from the hotel-booking
-database. The Supabase project URL (for example,
-`https://<project-ref>.supabase.co`) is not the PostgreSQL connection URI Django
-needs. In the project's Database settings, copy the PostgreSQL pooler connection
-URI into the private `DATABASE_URL` environment variable and append
-`sslmode=require` if it is not already present. For example:
+database. This app uses Supabase Auth, PostgREST, and Storage APIs; it no longer
+uses a Supabase PostgreSQL connection URI or `DATABASE_URL` for application
+data. The `SUPABASE_SERVICE_ROLE_KEY` stays on the Django server and is never
+rendered into HTML or sent to browser JavaScript.
 
-```text
-postgresql://postgres.<project-ref>:<password>@<pooler-host>:6543/postgres?sslmode=require
-```
+1. In the rental project's SQL Editor, run
+   `supabase/migrations/0002_rest_api_backend.sql`. It creates the API-backed
+   listing, photo, viewing-request, owner-request, and owner-profile schema,
+   restricts public data access with RLS, configures the public photo bucket,
+   and creates owner profiles when Supabase Auth receives an owner sign-up.
+2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`),
+   and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) in the server's
+   private environment variables. The publishable/anon key supports owner
+   sign-in; all database writes are made by the server with the secret/service
+   key. Never put that secret key in a template, JavaScript bundle, or public
+   repository.
+3. Set `RENTAL_STAFF_USERNAME` and `RENTAL_STAFF_PASSWORD` to a unique staff
+   login, with a password of at least 20 characters. Staff use the custom
+   portal at `/staff/records/`; the Django admin login is no longer used in
+   REST mode.
+4. Owners request an account through the existing form, confirm their account
+   according to the Supabase Auth project's email-confirmation settings, and
+   wait for staff approval before signing in. Staff can approve owners and
+   manage listings and requests in the portal.
 
-Never commit `.env` or expose database credentials in public frontend code.
-Then run `python manage.py migrate`, apply
-`supabase/migrations/0001_public_listing_read.sql` in the Supabase SQL Editor,
-and create the first staff account with `python manage.py createsuperuser`.
-Django migrations create the listing, photo, inspection-request, property
-listing-request, staff-profile, and owner-profile tables in this project's
-database. The SQL migration enables
-read-only public access to published listings and their photos for a separate
-public Supabase client, if one is needed. The current Rooms page reads listings
-and submits property and viewing requests through Django; these requests,
-staff profiles, and owner profiles are not accessible to public Supabase
-clients.
+Apply the SQL migration before configuring the API variables. In REST mode,
+the SQLite database is not the source of rental data. It is retained for local
+Django compatibility and deployment migrations only; sessions use signed
+cookies. Existing rental listing and request rows in the dedicated Supabase
+project are retained by the additive SQL migration. Existing Django owner
+passwords cannot be imported into Supabase Auth; owners will need to submit a
+new account request. Existing photo records are retained, but image files
+stored only on a Django/Render filesystem are not copied to Supabase Storage;
+staff must upload available originals again through the listing editor.
 
-The project does not connect to the existing hotel Supabase. Configure a
-separate Supabase project and credentials for rental data.
+For local development, copy `.env.example` to `.env`, set the same Supabase
+values and a staff username/password to exercise REST mode. Without all three
+Supabase API variables, the legacy local SQLite workflow remains available for
+development and tests.
 
 ## Production configuration
 
-Set `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`, and
-`DJANGO_CSRF_TRUSTED_ORIGINS`, as well as the Supabase Postgres `DATABASE_URL`.
-On Render, the service automatically adds `RENDER_EXTERNAL_HOSTNAME` to
+Set a persistent random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
+`SUPABASE_URL`, either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`,
+either `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`,
+`RENTAL_STAFF_USERNAME`, and `RENTAL_STAFF_PASSWORD` in Render's private
+environment variables. Use a staff password of at least 20 characters. The app
+refuses to start in Render when any required Supabase or staff variable is
+missing. Do not configure `DATABASE_URL` for this app. On Render, the service
+automatically adds `RENDER_EXTERNAL_HOSTNAME` to
 `ALLOWED_HOSTS` and the matching HTTPS CSRF trusted origin. A custom domain
 must also be included in `DJANGO_ALLOWED_HOSTS` and
-`DJANGO_CSRF_TRUSTED_ORIGINS`. Debug mode is always disabled on Render.
+`DJANGO_CSRF_TRUSTED_ORIGINS`.
 
-Set a persistent, randomly generated `DJANGO_SECRET_KEY` in Render's private
-environment variables. If it is missing, the app uses a secure temporary key
-and logs a warning; sessions will be invalidated when the service restarts.
-Run `python manage.py migrate` during deployment and serve static/media files
-using production storage. Local media storage is intended for development;
-Supabase Storage integration is a follow-up before hosting property photos.
+The configured start command may continue to run `python manage.py migrate
+--noinput`; those migrations use local SQLite, not Supabase Postgres. Serve
+static files using the existing production setup. Rental photos are uploaded
+to the Supabase Storage bucket created by the SQL migration.
