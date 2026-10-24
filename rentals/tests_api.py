@@ -60,6 +60,19 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertContains(response, "https://storage.example/house.jpg")
         self.assertEqual(response.context["listing_count"], 1)
 
+    @patch("rentals.api_views.public_listings", return_value=[])
+    def test_staff_session_keeps_customer_homepage_at_root(self, public_listings):
+        session = self.client.session
+        session["rental_staff_authenticated"] = True
+        session.save()
+
+        response = self.client.get(reverse("home"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(response, "rentals/home.html")
+        self.assertContains(response, "Homes available for rent")
+        public_listings.assert_called_once_with()
+
     @patch("rentals.api_views.insert")
     def test_home_request_is_saved_in_supabase(self, insert_record):
         response = self.client.post(

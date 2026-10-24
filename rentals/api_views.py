@@ -123,8 +123,6 @@ def _owner_required(view):
 
 
 def home(request):
-    if request.session.get("rental_staff_authenticated") or _owner_session_id(request):
-        return redirect("dashboard")
     return _render_public_home(request)
 
 
