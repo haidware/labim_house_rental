@@ -1,10 +1,13 @@
+from io import BytesIO
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from PIL import Image
 
 from .models import OwnerProfile
 
@@ -324,6 +327,67 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertEqual(values["category"], "home")
         self.assertEqual(values["annual_rent"], 2_400_000)
         self.assertEqual(values["status"], "draft")
+
+    def test_staff_can_upload_listing_photos(self):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+        image_data = BytesIO()
+        Image.new("RGB", (1, 1), color="white").save(image_data, format="PNG")
+        photo = SimpleUploadedFile(
+            "house.png",
+            image_data.getvalue(),
+            content_type="image/png",
+        )
+
+        with (
+            patch(
+                "rentals.api_views.insert",
+                side_effect=[
+                    {"id": 17, "slug": "new-home"},
+                    {"id": 18},
+                ],
+            ) as insert_record,
+            patch("rentals.api_views.rows", return_value=[]),
+            patch(
+                "rentals.api_views.upload_listing_photo",
+                return_value={
+                    "listing_id": 17,
+                    "image": "https://storage.example/house.png",
+                    "caption": "",
+                    "position": 0,
+                },
+            ) as upload_photo,
+        ):
+            response = self.client.post(
+                reverse("staff_listing_create"),
+                {
+                    "title": "Verified family home",
+                    "description": "A verified listing.",
+                    "address": "1 Test Street",
+                    "city": "Abuja",
+                    "state": "FCT",
+                    "property_type": "House",
+                    "category": "home",
+                    "transaction_type": "rent",
+                    "annual_rent": "2400000",
+                    "bedrooms": "3",
+                    "bathrooms": "2",
+                    "status": "draft",
+                    "action": "save",
+                    "photos": photo,
+                },
+            )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("staff_records"))
+        upload_photo.assert_called_once()
+        self.assertEqual(upload_photo.call_args.args[1:], (17, 0))
+        self.assertEqual(insert_record.call_count, 2)
 
     @patch("rentals.api_views.auth_client")
     def test_owner_account_request_uses_supabase_auth_metadata(self, auth_client):

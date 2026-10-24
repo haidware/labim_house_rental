@@ -8,6 +8,15 @@ class MultipleFileInput(forms.FileInput):
     allow_multiple_selected = True
 
 
+class MultipleFileField(forms.FileField):
+    def clean(self, data, initial=None):
+        if not data:
+            return super().clean(data, initial)
+        if not isinstance(data, (list, tuple)):
+            data = [data]
+        return [super().clean(file, initial) for file in data]
+
+
 class StaffLoginForm(forms.Form):
     username = forms.CharField(max_length=150)
     password = forms.CharField(widget=forms.PasswordInput)
@@ -92,7 +101,7 @@ class OwnerListingForm(forms.Form):
     sale_price = forms.IntegerField(min_value=1, required=False, label="Sale price (NGN)")
     bedrooms = forms.IntegerField(min_value=0, max_value=99, initial=1)
     bathrooms = forms.IntegerField(min_value=0, max_value=99, initial=1)
-    photos = forms.FileField(
+    photos = MultipleFileField(
         required=False,
         widget=MultipleFileInput(attrs={"accept": "image/*"}),
     )
