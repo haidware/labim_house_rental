@@ -24,32 +24,6 @@ account_patterns = ([
 
 urlpatterns = [
     path("health/", views.health_check, name="health_check"),
-    path("", views.home, name="home"),
-    path(
-        "homes/<slug:slug>/inspection/",
-        views.public_inspection_request,
-        name="public_inspection_request",
-    ),
-    path(
-        "list-your-property/",
-        views.property_listing_request,
-        name="property_listing_request",
-    ),
-    path(
-        "list-your-property/received/",
-        views.property_listing_request_submitted,
-        name="property_listing_request_submitted",
-    ),
-    path("accounts/", include(account_patterns, namespace="accounts")),
-    path("dashboard/", views.dashboard, name="dashboard"),
-    path("owner/house/", views.home_owner_dashboard, name="home_owner_dashboard"),
-    path("owner/land/", views.land_owner_dashboard, name="land_owner_dashboard"),
-    path("owner/listings/new/", views.owner_listing_create, name="owner_listing_create"),
-    path(
-        "owner/listings/<int:pk>/edit/",
-        views.owner_listing_edit,
-        name="owner_listing_edit",
-    ),
 ]
 
 if settings.SUPABASE_API_ENABLED:
@@ -57,4 +31,32 @@ if settings.SUPABASE_API_ENABLED:
 
     urlpatterns += api_urlpatterns
 else:
-    urlpatterns.append(path("admin/", admin.site.urls))
+    urlpatterns += [
+        path("", views.home, name="home"),
+        path(
+            "homes/<slug:slug>/inspection/",
+            views.public_inspection_request,
+            name="public_inspection_request",
+        ),
+        path(
+            "list-your-property/",
+            views.property_listing_request,
+            name="property_listing_request",
+        ),
+        path(
+            "list-your-property/received/",
+            views.property_listing_request_submitted,
+            name="property_listing_request_submitted",
+        ),
+        path("accounts/", include(account_patterns, namespace="accounts")),
+        path("dashboard/", views.dashboard, name="dashboard"),
+        path("owner/house/", views.home_owner_dashboard, name="home_owner_dashboard"),
+        path("owner/land/", views.land_owner_dashboard, name="land_owner_dashboard"),
+        path("owner/listings/new/", views.owner_listing_create, name="owner_listing_create"),
+        path(
+            "owner/listings/<int:pk>/edit/",
+            views.owner_listing_edit,
+            name="owner_listing_edit",
+        ),
+        path("admin/", admin.site.urls),
+    ]

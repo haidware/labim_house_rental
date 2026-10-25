@@ -182,6 +182,27 @@ class SupabaseApiWorkflowTests(TestCase):
                     response.close()
                     script.close()
 
+    def test_supabase_urlconf_uses_flutter_home_and_keeps_health_check(self):
+        from importlib import reload
+
+        from django.urls import clear_url_caches, resolve
+
+        from config import urls as config_urls
+        from rentals import api_views, views
+
+        try:
+            with self.settings(
+                ROOT_URLCONF="config.urls",
+                SUPABASE_API_ENABLED=True,
+            ):
+                reload(config_urls)
+                clear_url_caches()
+                self.assertIs(resolve("/").func, api_views.home)
+                self.assertIs(resolve("/health/").func, views.health_check)
+        finally:
+            reload(config_urls)
+            clear_url_caches()
+
     @patch("rentals.api_views.insert")
     @patch("rentals.api_views.public_listings", return_value=[])
     def test_flutter_request_uses_csrf_token_from_listing_api(
