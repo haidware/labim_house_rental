@@ -559,7 +559,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: _RoomsCategoryTab(
                 label: 'Hotels',
                 icon: Icons.bed_outlined,
-                onTap: () => _openExternal('https://rooms-uamy.onrender.com/'),
+                onTap: () =>
+                    _openExternal('https://labimbooking-production.up.railway.app/'),
               ),
             ),
             const SizedBox(width: 8),
@@ -567,8 +568,9 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: _RoomsCategoryTab(
                 label: 'Apartment',
                 icon: Icons.apartment_outlined,
-                onTap: () =>
-                    _openExternal('https://rooms-uamy.onrender.com/apartment'),
+                onTap: () => _openExternal(
+                  'https://labimbooking-production.up.railway.app/apartment',
+                ),
               ),
             ),
             Expanded(
