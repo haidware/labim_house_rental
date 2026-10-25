@@ -118,20 +118,37 @@ Deploy this repository as a Docker web service so the Flutter build stage can
 compile the public web client and package it with Django. The included
 `Dockerfile` uses Flutter 3.35.1 to build the web app; Django serves that build
 at `/` and serves the bundle assets. Do not run Flutter's development server
-in production. Configure the service's health check at `/` or another
-application route.
+in production.
 
-Set a persistent random `DJANGO_SECRET_KEY`, `DJANGO_DEBUG=false`,
-`SUPABASE_URL`, either `SUPABASE_ANON_KEY` or `SUPABASE_PUBLISHABLE_KEY`,
-either `SUPABASE_SERVICE_ROLE_KEY` or `SUPABASE_SECRET_KEY`,
-`RENTAL_STAFF_USERNAME`, and `RENTAL_STAFF_PASSWORD` in Render's private
-environment variables. Use a long, unique staff password. The app refuses to
-start in Render when any required Supabase or staff variable is missing. Do not
-configure `DATABASE_URL` for this app. On Render, the service
-automatically adds `RENDER_EXTERNAL_HOSTNAME` to
-`ALLOWED_HOSTS` and the matching HTTPS CSRF trusted origin. A custom domain
-must also be included in `DJANGO_ALLOWED_HOSTS` and
-`DJANGO_CSRF_TRUSTED_ORIGINS`.
+Railway deployment uses the included `railway.json`, which selects the
+Dockerfile, checks `/health/`, and restarts the service after failures. Connect
+the `haidware/labim_house_rental` GitHub repository to a Railway service and
+configure these private service variables:
+
+- `DJANGO_SECRET_KEY`: persistent random secret.
+- `DJANGO_DEBUG`: `false`.
+- `SUPABASE_URL`.
+- `SUPABASE_PUBLISHABLE_KEY` (or `SUPABASE_ANON_KEY`).
+- `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`).
+- `RENTAL_STAFF_USERNAME` and `RENTAL_STAFF_PASSWORD`: the existing staff
+  login; use a long, unique password.
+- `RENTAL_INSPECTION_WHATSAPP_NUMBER`: the Rooms WhatsApp number, if overriding
+  the default.
+
+The app automatically adds Railway's `RAILWAY_PUBLIC_DOMAIN` and Render's
+`RENDER_EXTERNAL_HOSTNAME` to `ALLOWED_HOSTS` and their HTTPS origins to
+`CSRF_TRUSTED_ORIGINS`. Add any custom domain to
+`DJANGO_ALLOWED_HOSTS` and `DJANGO_CSRF_TRUSTED_ORIGINS`. Do not configure
+`DATABASE_URL` or add a Railway database: listings, staff data, and photos
+remain in the existing rental Supabase project. The container still runs
+`python manage.py migrate --noinput`; this updates local SQLite migration
+metadata only and is not the application data store.
+
+For a zero-downtime move, keep the existing Render service running while
+Railway builds and passes `/health/`. Then verify the Railway public URL and
+marketplace/API behavior, update the Rooms app's `RENTAL_SERVICE_URL` to that
+URL, and confirm Homes and Land work through the Rooms same-origin proxy.
+Only retire the Render service after those checks pass.
 
 The container start command runs `python manage.py migrate --noinput`; those
 migrations use local SQLite, not Supabase Postgres. Rental photos are uploaded

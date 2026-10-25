@@ -14,6 +14,12 @@ from .models import (
 class RentalAdminTests(TestCase):
     password = "Test-password-123!"
 
+    def test_health_check_returns_ok(self):
+        response = self.client.get("/health/")
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json(), {"status": "ok"})
+
     def setUp(self):
         self.staff = get_user_model().objects.create_user(
             username="manager",

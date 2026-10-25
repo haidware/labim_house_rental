@@ -9,23 +9,25 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
 IS_RENDER = bool(os.getenv("RENDER"))
+IS_RAILWAY = bool(os.getenv("RAILWAY_ENVIRONMENT"))
+IS_PRODUCTION = IS_RENDER or IS_RAILWAY
 DEBUG = (
-    not IS_RENDER
-    and os.getenv("DJANGO_DEBUG", "true").lower() == "true"
+    os.getenv("DJANGO_DEBUG", "false" if IS_PRODUCTION else "true").lower()
+    == "true"
 )
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "")
 if not SECRET_KEY:
     SECRET_KEY = (
         secrets.token_urlsafe(64)
-        if IS_RENDER
+        if IS_PRODUCTION
         else "local-only-insecure-secret"
     )
-    if IS_RENDER:
+    if IS_PRODUCTION:
         import logging
 
         logging.getLogger("django.security").warning(
             "DJANGO_SECRET_KEY is unset; using an ephemeral key. "
-            "Set a persistent secret in the Render environment."
+            "Set a persistent secret in the production environment."
         )
 ALLOWED_HOSTS = [
     host.strip()
@@ -36,17 +38,29 @@ render_hostname = os.getenv("RENDER_EXTERNAL_HOSTNAME", "").strip()
 if not render_hostname:
     render_url = os.getenv("RENDER_EXTERNAL_URL", "").strip()
     render_hostname = urlsplit(render_url).hostname if render_url else ""
-if render_hostname and render_hostname not in ALLOWED_HOSTS:
-    ALLOWED_HOSTS.append(render_hostname)
+railway_public_domain = os.getenv("RAILWAY_PUBLIC_DOMAIN", "").strip()
+railway_hostname = (
+    urlsplit(
+        railway_public_domain
+        if "://" in railway_public_domain
+        else f"//{railway_public_domain}"
+    ).hostname
+    if railway_public_domain
+    else ""
+)
+for platform_hostname in (render_hostname, railway_hostname):
+    if platform_hostname and platform_hostname not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(platform_hostname)
 CSRF_TRUSTED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("DJANGO_CSRF_TRUSTED_ORIGINS", "").split(",")
     if origin.strip()
 ]
-if render_hostname:
-    render_origin = f"https://{render_hostname}"
-    if render_origin not in CSRF_TRUSTED_ORIGINS:
-        CSRF_TRUSTED_ORIGINS.append(render_origin)
+for platform_hostname in (render_hostname, railway_hostname):
+    if platform_hostname:
+        platform_origin = f"https://{platform_hostname}"
+        if platform_origin not in CSRF_TRUSTED_ORIGINS:
+            CSRF_TRUSTED_ORIGINS.append(platform_origin)
 
 if not DEBUG and not ALLOWED_HOSTS:
     raise RuntimeError("Set DJANGO_ALLOWED_HOSTS before running in production.")
@@ -97,7 +111,7 @@ if SUPABASE_API_ENABLED and not (
     raise RuntimeError(
         "Configure RENTAL_STAFF_USERNAME and RENTAL_STAFF_PASSWORD when using Supabase REST mode."
     )
-if IS_RENDER:
+if IS_PRODUCTION:
     missing_supabase_settings = [
         name
         for name, value in (
@@ -114,7 +128,7 @@ if IS_RENDER:
     ]
     if missing_supabase_settings:
         raise RuntimeError(
-            "Configure these private Render environment variables: "
+            "Configure these private production environment variables: "
             + ", ".join(missing_supabase_settings)
         )
 

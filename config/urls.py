@@ -23,6 +23,7 @@ account_patterns = ([
 ], "accounts")
 
 urlpatterns = [
+    path("health/", views.health_check, name="health_check"),
     path("", views.home, name="home"),
     path(
         "homes/<slug:slug>/inspection/",
@@ -52,6 +53,8 @@ urlpatterns = [
 ]
 
 if settings.SUPABASE_API_ENABLED:
-    from rentals.api_urls import urlpatterns
+    from rentals.api_urls import urlpatterns as api_urlpatterns
+
+    urlpatterns += api_urlpatterns
 else:
     urlpatterns.append(path("admin/", admin.site.urls))

@@ -133,7 +133,7 @@ def home(request):
         response = FileResponse(flutter_index.open("rb"), content_type="text/html")
         response["Cache-Control"] = "no-cache"
         return response
-    if settings.IS_RENDER:
+    if settings.IS_PRODUCTION:
         logger.error("Flutter web build is missing: %s", flutter_index)
         return JsonResponse(
             {"error": "The rental website is temporarily unavailable."},
