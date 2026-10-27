@@ -7,6 +7,7 @@ from unittest.mock import patch
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
+from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
 from .models import OwnerProfile
@@ -34,6 +35,7 @@ class SupabaseApiWorkflowTests(TestCase):
                     "bedrooms": 3,
                     "bathrooms": 2,
                     "annual_rent": 1_200_000,
+                    "video_url": "https://storage.example/house.mp4",
                     "photos": [
                         {"image": "https://storage.example/house.jpg", "caption": ""}
                     ],
@@ -66,6 +68,10 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertEqual(
             data["listings"][0]["photos"][0]["image"],
             "https://storage.example/house.jpg",
+        )
+        self.assertEqual(
+            data["listings"][0]["video_url"],
+            "https://storage.example/house.mp4",
         )
         self.assertEqual(data["listings"][0]["monthly_rent"], 100000)
         self.assertEqual(
@@ -479,32 +485,48 @@ class SupabaseApiWorkflowTests(TestCase):
                 "password": "test-only-password-123",
             },
         )
-        image_data = BytesIO()
-        Image.new("RGB", (1, 1), color="white").save(image_data, format="PNG")
-        photo = SimpleUploadedFile(
-            "house.png",
-            image_data.getvalue(),
-            content_type="image/png",
-        )
+        photos = []
+        for index in range(5):
+            image_data = BytesIO()
+            Image.new("RGB", (1, 1), color="white").save(image_data, format="PNG")
+            photos.append(
+                SimpleUploadedFile(
+                    f"house-{index}.png",
+                    image_data.getvalue(),
+                    content_type="image/png",
+                )
+            )
 
         with (
             patch(
                 "rentals.api_views.insert",
-                side_effect=[
-                    {"id": 17, "slug": "new-home"},
-                    {"id": 18},
-                ],
+                side_effect=[{"id": 17, "slug": "new-home"}]
+                + [{"id": 18 + index} for index in range(5)],
             ) as insert_record,
             patch("rentals.api_views.rows", return_value=[]),
             patch(
                 "rentals.api_views.upload_listing_photo",
-                return_value={
-                    "listing_id": 17,
-                    "image": "https://storage.example/house.png",
+                side_effect=lambda photo, listing_id, position: {
+                    "listing_id": listing_id,
+                    "image": f"https://storage.example/house-{position}.png",
                     "caption": "",
-                    "position": 0,
+                    "position": position,
                 },
             ) as upload_photo,
+            patch(
+                "rentals.api_forms.subprocess.run",
+                return_value=SimpleNamespace(
+                    stdout='{"format":{"duration":"120"},"streams":[{"codec_type":"video"}]}'
+                ),
+            ),
+            patch(
+                "rentals.api_views.upload_listing_video",
+                return_value="https://storage.example/house.mp4",
+            ) as upload_video,
+            patch(
+                "rentals.api_views.update",
+                return_value={"id": 17, "video_url": "https://storage.example/house.mp4"},
+            ) as update_listing,
         ):
             response = self.client.post(
                 reverse("staff_listing_create"),
@@ -522,15 +544,120 @@ class SupabaseApiWorkflowTests(TestCase):
                     "bathrooms": "2",
                     "status": "draft",
                     "action": "save",
-                    "photos": photo,
+                    "photos": photos,
+                    "video": SimpleUploadedFile(
+                        "house.mp4",
+                        b"video",
+                        content_type="video/mp4",
+                    ),
                 },
             )
 
         self.assertEqual(response.status_code, 302)
         self.assertEqual(response["Location"], reverse("staff_records"))
-        upload_photo.assert_called_once()
-        self.assertEqual(upload_photo.call_args.args[1:], (17, 0))
-        self.assertEqual(insert_record.call_count, 2)
+        self.assertEqual(upload_photo.call_count, 5)
+        self.assertEqual(
+            [call.args[1:] for call in upload_photo.call_args_list],
+            [(17, index) for index in range(5)],
+        )
+        self.assertEqual(insert_record.call_count, 6)
+        upload_video.assert_called_once()
+        self.assertEqual(upload_video.call_args.args[1], 17)
+        update_listing.assert_called_once_with(
+            "rental_listings",
+            17,
+            {"video_url": "https://storage.example/house.mp4"},
+        )
+
+    def test_staff_listing_rejects_more_than_five_photos(self):
+        from .api_forms import StaffRentalListingForm
+
+        base_data = {
+            "title": "Verified family home",
+            "description": "A verified listing.",
+            "city": "Abuja",
+            "state": "FCT",
+            "transaction_type": "rent",
+            "annual_rent": "2400000",
+            "bedrooms": "3",
+            "bathrooms": "2",
+            "category": "home",
+            "status": "draft",
+        }
+        photos = [
+            SimpleUploadedFile(f"house-{index}.png", b"image", content_type="image/png")
+            for index in range(6)
+        ]
+        form = StaffRentalListingForm(
+            data=base_data,
+            files=MultiValueDict({"photos": photos}),
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("no more than 5 photos", str(form.errors["photos"]))
+
+    def test_staff_listing_video_must_not_exceed_three_minutes(self):
+        from .api_forms import StaffRentalListingForm
+
+        base_data = {
+            "title": "Verified family home",
+            "description": "A verified listing.",
+            "city": "Abuja",
+            "state": "FCT",
+            "transaction_type": "rent",
+            "annual_rent": "2400000",
+            "bedrooms": "3",
+            "bathrooms": "2",
+            "category": "home",
+            "status": "draft",
+        }
+        video_metadata = SimpleNamespace(
+            stdout='{"format":{"duration":"180"},"streams":[{"codec_type":"video"}]}'
+        )
+        with patch(
+            "rentals.api_forms.subprocess.run",
+            return_value=video_metadata,
+        ) as probe:
+            form = StaffRentalListingForm(
+                data=base_data,
+                files=MultiValueDict(
+                    {
+                        "video": [
+                            SimpleUploadedFile(
+                                "house.mp4",
+                                b"video",
+                                content_type="video/mp4",
+                            )
+                        ]
+                    }
+                ),
+            )
+            self.assertTrue(form.is_valid(), form.errors)
+        probe.assert_called_once()
+
+        video_metadata.stdout = (
+            '{"format":{"duration":"180.1"},"streams":[{"codec_type":"video"}]}'
+        )
+        with patch(
+            "rentals.api_forms.subprocess.run",
+            return_value=video_metadata,
+        ):
+            form = StaffRentalListingForm(
+                data=base_data,
+                files=MultiValueDict(
+                    {
+                        "video": [
+                            SimpleUploadedFile(
+                                "house.mp4",
+                                b"video",
+                                content_type="video/mp4",
+                            )
+                        ]
+                    }
+                ),
+            )
+            self.assertFalse(form.is_valid())
+        self.assertIn("3 minutes", str(form.errors["video"]))
 
     @patch("rentals.api_views.auth_client")
     def test_owner_account_request_uses_supabase_auth_metadata(self, auth_client):

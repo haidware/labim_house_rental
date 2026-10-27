@@ -62,6 +62,7 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.text('Verified family home'), findsOneWidget);
       expect(find.text('₦100,000 / approx. month'), findsOneWidget);
+      expect(find.text('Watch property video'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
@@ -219,6 +220,7 @@ http.Response _listingResponse() => http.Response(
         'bathrooms': 2,
         'annual_rent': 1200000,
         'monthly_rent': 100000,
+        'video_url': 'https://storage.example/house.mp4',
         'photos': [],
       },
     ],

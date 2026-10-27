@@ -19,6 +19,7 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 from postgrest.exceptions import APIError
+from storage3.exceptions import StorageException
 from supabase_auth.errors import AuthApiError
 
 from .api_forms import (
@@ -41,8 +42,10 @@ from .supabase_api import (
     rows,
     update,
     upload_listing_photo,
+    upload_listing_video,
 )
 from .forms import PublicInspectionRequestForm
+from .upload_limits import MAX_LISTING_PHOTOS
 
 
 logger = logging.getLogger(__name__)
@@ -280,6 +283,7 @@ def public_api_listings(request):
                 "bathrooms": listing.get("bathrooms", 0),
                 "annual_rent": listing.get("annual_rent") or 0,
                 "sale_price": listing.get("sale_price") or 0,
+                "video_url": listing.get("video_url") or "",
                 "monthly_rent": (
                     (listing.get("annual_rent") or 0) + 11
                 ) // 12,
@@ -765,6 +769,34 @@ def _staff_listing_form(request, listing=None):
         if action != "save":
             form.add_error(None, "Choose save to update the listing.")
         else:
+            photos = data.get("photos") or []
+            try:
+                existing_photos = (
+                    rows("rental_listing_photos", listing_id=listing["id"])
+                    if listing and photos
+                    else []
+                )
+            except APIError:
+                logger.exception("Could not check staff rental listing photos.")
+                form.add_error(
+                    None,
+                    "The listing photos could not be checked. Please try again.",
+                )
+                return render(
+                    request,
+                    "rentals/staff_listing_form.html",
+                    {"form": form, "listing": listing},
+                )
+            if len(existing_photos) + len(photos) > MAX_LISTING_PHOTOS:
+                form.add_error(
+                    "photos",
+                    f"A listing can have no more than {MAX_LISTING_PHOTOS} photos total.",
+                )
+                return render(
+                    request,
+                    "rentals/staff_listing_form.html",
+                    {"form": form, "listing": listing},
+                )
             values = {
                 key: data[key]
                 for key in (
@@ -810,12 +842,7 @@ def _staff_listing_form(request, listing=None):
                         "rentals/staff_listing_form.html",
                         {"form": form, "listing": listing},
                     )
-                photos = data.get("photos") or []
                 if photos:
-                    existing_photos = rows(
-                        "rental_listing_photos",
-                        listing_id=saved_listing["id"],
-                    )
                     next_position = len(existing_photos)
                     for offset, photo in enumerate(photos):
                         photo_data = upload_listing_photo(
@@ -824,7 +851,25 @@ def _staff_listing_form(request, listing=None):
                             next_position + offset,
                         )
                         insert("rental_listing_photos", photo_data)
-            except APIError:
+                video = data.get("video")
+                if video:
+                    video_url = upload_listing_video(video, saved_listing["id"])
+                    updated_listing = update(
+                        "rental_listings",
+                        saved_listing["id"],
+                        {"video_url": video_url},
+                    )
+                    if not updated_listing:
+                        form.add_error(
+                            "video",
+                            "The video was uploaded, but its listing could not be updated. Please retry.",
+                        )
+                        return render(
+                            request,
+                            "rentals/staff_listing_form.html",
+                            {"form": form, "listing": listing},
+                        )
+            except (APIError, StorageException):
                 logger.exception("Could not save staff rental listing.")
                 form.add_error(
                     None,
@@ -990,6 +1035,34 @@ def _owner_listing_form(request, listing=None):
         if action not in {"draft", "submit"}:
             form.add_error(None, "Choose whether to save a draft or submit for review.")
         else:
+            photos = form.cleaned_data.get("photos") or []
+            try:
+                existing_photos = (
+                    rows("rental_listing_photos", listing_id=listing["id"])
+                    if listing and photos
+                    else []
+                )
+            except APIError:
+                logger.exception("Could not check owner rental listing photos.")
+                form.add_error(
+                    None,
+                    "Your listing photos could not be checked. Please try again.",
+                )
+                return render(
+                    request,
+                    "rentals/owner_listing_form.html",
+                    {"form": form, "listing": listing, "profile": profile},
+                )
+            if len(existing_photos) + len(photos) > MAX_LISTING_PHOTOS:
+                form.add_error(
+                    "photos",
+                    f"A listing can have no more than {MAX_LISTING_PHOTOS} photos total.",
+                )
+                return render(
+                    request,
+                    "rentals/owner_listing_form.html",
+                    {"form": form, "listing": listing, "profile": profile},
+                )
             values = {
                 key: data[key]
                 for key in (
@@ -1039,12 +1112,7 @@ def _owner_listing_form(request, listing=None):
                         "rentals/owner_listing_form.html",
                         {"form": form, "listing": listing, "profile": profile},
                     )
-                photos = form.cleaned_data.get("photos") or []
                 if photos:
-                    existing_photos = rows(
-                        "rental_listing_photos",
-                        listing_id=saved_listing["id"],
-                    )
                     next_position = len(existing_photos)
                     for offset, photo in enumerate(photos):
                         photo_data = upload_listing_photo(
@@ -1053,7 +1121,7 @@ def _owner_listing_form(request, listing=None):
                             next_position + offset,
                         )
                         insert("rental_listing_photos", photo_data)
-            except APIError:
+            except (APIError, StorageException):
                 logger.exception("Could not save owner rental listing.")
                 form.add_error(
                     None,

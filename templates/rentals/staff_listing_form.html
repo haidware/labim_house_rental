@@ -17,7 +17,7 @@
   <body>
     <main>
       <h1>{% if listing %}Edit{% else %}Create{% endif %} rental listing</h1>
-      <p>Rooms manages property verification, photos, and publication status.</p>
+      <p>Rooms manages property verification, photos, video, and publication status.</p>
       <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
         {% for error in form.non_field_errors %}<p class="errors">{{ error }}</p>{% endfor %}
@@ -26,7 +26,11 @@
           {{ field }}
           {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
         {% endfor %}
-        <p>Upload up to three valid JPG, PNG, or WEBP photos (5 MB maximum each).</p>
+        <p>Upload up to five valid JPG, PNG, or WEBP photos (5 MB maximum each). A listing can have five photos total.</p>
+        <p>Optional: upload one MP4, MOV, M4V, or WEBM video up to 3 minutes and 100 MB.</p>
+        {% if listing.video_url %}
+          <p>Current video: <a href="{{ listing.video_url }}" target="_blank" rel="noopener">View uploaded video</a></p>
+        {% endif %}
         <button type="submit" name="action" value="save">Save listing</button>
       </form>
       <p><a href="{% url 'staff_records' %}">Back to rental records</a></p>

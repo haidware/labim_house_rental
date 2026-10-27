@@ -29,7 +29,24 @@
           {{ field }}
           {% for error in field.errors %}<div class="errors">{{ error }}</div>{% endfor %}
         {% endfor %}
-        <p>Upload up to three JPG, PNG, or WEBP photos (5 MB maximum each).</p>
+        {% if formset %}
+          {{ formset.management_form }}
+          <h2>Property photos</h2>
+          <p>Upload up to five JPG, PNG, or WEBP photos total (5 MB maximum each).</p>
+          {% for photo_form in formset %}
+            <div class="photo">
+              {% for hidden in photo_form.hidden_fields %}{{ hidden }}{% endfor %}
+              {% for field in photo_form.visible_fields %}
+                <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+                {{ field }}
+                {% for error in field.errors %}<div class="errors">{{ error }}</div>{% endfor %}
+              {% endfor %}
+              {% for error in photo_form.non_field_errors %}<div class="errors">{{ error }}</div>{% endfor %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p>Upload up to five JPG, PNG, or WEBP photos total (5 MB maximum each).</p>
+        {% endif %}
         <button class="secondary" type="submit" name="action" value="draft">Save draft</button>
         <button type="submit" name="action" value="submit">Submit for Haidware review</button>
       </form>

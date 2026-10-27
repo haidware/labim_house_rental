@@ -8,6 +8,7 @@ from django.core.exceptions import ImproperlyConfigured
 from supabase import create_client
 
 from .models import RentalListing
+from .upload_limits import MAX_LISTING_PHOTOS
 
 
 @lru_cache(maxsize=1)
@@ -107,7 +108,12 @@ def public_listings(
         for photo in photos:
             image_url = photo.get("image") or ""
             if urlsplit(image_url).scheme == "https":
-                photos_by_listing.setdefault(photo["listing_id"], []).append(photo)
+                listing_photos = photos_by_listing.setdefault(
+                    photo["listing_id"],
+                    [],
+                )
+                if len(listing_photos) < MAX_LISTING_PHOTOS:
+                    listing_photos.append(photo)
     for listing in result:
         listing["photos"] = photos_by_listing.get(listing["id"], [])
         listing["primary_photo"] = (
@@ -149,3 +155,18 @@ def upload_listing_photo(file, listing_id, position):
         "caption": "",
         "position": position,
     }
+
+
+def upload_listing_video(file, listing_id):
+    extension = file.name.rsplit(".", 1)[-1].lower()
+    path = f"rental-listings/{listing_id}/{uuid4().hex}.{extension}"
+    storage = admin_client().storage.from_(settings.SUPABASE_VIDEO_STORAGE_BUCKET)
+    storage.upload(
+        path,
+        file.read(),
+        {
+            "content-type": file.video_mime_type,
+            "upsert": "true",
+        },
+    )
+    return storage.get_public_url(path)

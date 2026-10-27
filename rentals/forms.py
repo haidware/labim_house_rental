@@ -10,6 +10,8 @@ from .models import (
     PropertyListingRequest,
     RentalListing,
 )
+from .upload_limits import MAX_LISTING_PHOTOS
+from .upload_limits import MAX_LISTING_PHOTO_SIZE_BYTES
 
 
 class OwnerAccountRequestForm(UserCreationForm):
@@ -146,10 +148,24 @@ class PropertyListingRequestForm(forms.ModelForm):
         }
 
 
+class ListingPhotoForm(forms.ModelForm):
+    def clean_image(self):
+        image = self.cleaned_data.get("image")
+        if image and image.size > MAX_LISTING_PHOTO_SIZE_BYTES:
+            raise forms.ValidationError("Each photo must be 5 MB or smaller.")
+        return image
+
+    class Meta:
+        model = ListingPhoto
+        fields = ("image", "caption", "position")
+
+
 ListingPhotoFormSet = inlineformset_factory(
     RentalListing,
     ListingPhoto,
-    fields=("image", "caption", "position"),
-    extra=3,
+    form=ListingPhotoForm,
+    extra=MAX_LISTING_PHOTOS,
     can_delete=True,
+    max_num=MAX_LISTING_PHOTOS,
+    validate_max=True,
 )

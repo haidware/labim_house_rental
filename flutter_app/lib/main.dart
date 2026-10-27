@@ -80,6 +80,7 @@ class RentalListing {
     required this.transactionType,
     required this.salePrice,
     required this.photos,
+    required this.videoUrl,
   });
 
   factory RentalListing.fromJson(Map<String, dynamic> json) => RentalListing(
@@ -100,6 +101,7 @@ class RentalListing {
         .whereType<Map<String, dynamic>>()
         .map((photo) => RentalPhoto.fromJson(photo))
         .toList(),
+    videoUrl: json['video_url']?.toString() ?? '',
   );
 
   final String slug;
@@ -116,6 +118,7 @@ class RentalListing {
   final String transactionType;
   final int salePrice;
   final List<RentalPhoto> photos;
+  final String videoUrl;
 
   String get priceLabel => transactionType == 'sale'
       ? '${_naira.format(salePrice)} asking price'
@@ -461,13 +464,18 @@ class _RentalHomePageState extends State<RentalHomePage> {
                       crossAxisCount: columns,
                       crossAxisSpacing: 18,
                       mainAxisSpacing: 18,
-                      mainAxisExtent: 450,
+                      mainAxisExtent: 500,
                     ),
                     delegate: SliverChildBuilderDelegate(
                       (context, index) => _ListingCard(
                         listing: _listings[index],
                         onRequestViewing: () =>
                             _showInspectionRequest(_listings[index]),
+                        onWatchVideo: _listings[index].videoUrl.isEmpty
+                            ? null
+                            : () => _openExternal(
+                                _listings[index].videoUrl,
+                              ),
                       ),
                       childCount: _listings.length,
                     ),
@@ -1119,10 +1127,15 @@ class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
 }
 
 class _ListingCard extends StatelessWidget {
-  const _ListingCard({required this.listing, required this.onRequestViewing});
+  const _ListingCard({
+    required this.listing,
+    required this.onRequestViewing,
+    required this.onWatchVideo,
+  });
 
   final RentalListing listing;
   final VoidCallback onRequestViewing;
+  final VoidCallback? onWatchVideo;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -1144,12 +1157,15 @@ class _ListingCard extends StatelessWidget {
                   color: _pale,
                   child: Icon(Icons.home_outlined, color: _teal, size: 52),
                 )
-              : Image.network(
-                  listing.photos.first.image,
-                  fit: BoxFit.cover,
-                  errorBuilder: (_, _, _) => const ColoredBox(
-                    color: _pale,
-                    child: Icon(Icons.home_outlined, color: _teal, size: 52),
+              : PageView.builder(
+                  itemCount: listing.photos.length,
+                  itemBuilder: (context, index) => Image.network(
+                    listing.photos[index].image,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, _, _) => const ColoredBox(
+                      color: _pale,
+                      child: Icon(Icons.home_outlined, color: _teal, size: 52),
+                    ),
                   ),
                 ),
         ),
@@ -1202,9 +1218,20 @@ class _ListingCard extends StatelessWidget {
         ),
         Padding(
           padding: const EdgeInsets.fromLTRB(14, 5, 14, 14),
-          child: OutlinedButton(
-            onPressed: onRequestViewing,
-            child: const Text('Request Inspection'),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (onWatchVideo != null)
+                OutlinedButton.icon(
+                  onPressed: onWatchVideo,
+                  icon: const Icon(Icons.play_circle_outline),
+                  label: const Text('Watch property video'),
+                ),
+              OutlinedButton(
+                onPressed: onRequestViewing,
+                child: const Text('Request Inspection'),
+              ),
+            ],
           ),
         ),
       ],

@@ -26,7 +26,8 @@ accounts to manage their listings.
 - House-owner listings support rent. Land/property-owner listings support rent or sale.
 - Listing creation and editing, review/draft/published/rented/archived status,
   address, location, rent or sale price, and home details.
-- Multiple property photos per listing.
+- Up to five JPG, PNG, or WEBP photos per listing, with optional staff-uploaded
+  property videos up to three minutes and 100 MB.
 - Inspection-request tracking with status, preferred date, contact details, and
   private staff notes.
 - Supabase REST API and Storage for rental data, with SQLite retained for local
@@ -73,10 +74,11 @@ data. The `SUPABASE_SERVICE_ROLE_KEY` stays on the Django server and is never
 rendered into HTML or sent to browser JavaScript.
 
 1. In the rental project's SQL Editor, run
-   `supabase/migrations/0002_rest_api_backend.sql`. It creates the API-backed
-   listing, photo, viewing-request, owner-request, and owner-profile schema,
-   restricts public data access with RLS, configures the public photo bucket,
-   and creates owner profiles when Supabase Auth receives an owner sign-up.
+   `supabase/migrations/0002_rest_api_backend.sql`, then
+   `supabase/migrations/0003_listing_videos.sql`. These migrations create the
+   API-backed listing and photo schema, configure public image and video
+   storage, restrict public data access with RLS, and create owner profiles
+   when Supabase Auth receives an owner sign-up.
 2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`),
    and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) in the server's
    private environment variables. The publishable/anon key supports owner
@@ -107,7 +109,9 @@ stored only on a Django/Render filesystem are not copied to Supabase Storage;
 staff must upload available originals again through the listing editor.
 
 For local development, copy `.env.example` to `.env`, set the same Supabase
-values and a staff username/password to exercise REST mode. Without all three
+values and a staff username/password to exercise REST mode. Install `ffmpeg`
+(which provides `ffprobe`) locally to validate staff-uploaded video duration;
+the production Docker image installs it automatically. Without all three
 Supabase API variables, the legacy local SQLite workflow remains available for
 development and tests; in that mode the root page uses the legacy Django
 template instead of the Flutter site.

@@ -1,7 +1,20 @@
+import json
+import math
+import os
+import subprocess
+import tempfile
+from pathlib import Path
+
 from django import forms
 from PIL import Image, UnidentifiedImageError
 
 from .models import OwnerProfile, RentalListing
+from .upload_limits import (
+    MAX_LISTING_PHOTOS,
+    MAX_LISTING_PHOTO_SIZE_BYTES,
+    MAX_LISTING_VIDEO_DURATION_SECONDS,
+    MAX_LISTING_VIDEO_SIZE_BYTES,
+)
 
 
 class MultipleFileInput(forms.FileInput):
@@ -121,8 +134,10 @@ class OwnerListingForm(forms.Form):
 
     def clean_photos(self):
         photos = self.files.getlist("photos")
-        if len(photos) > 3:
-            raise forms.ValidationError("Upload no more than three photos.")
+        if len(photos) > MAX_LISTING_PHOTOS:
+            raise forms.ValidationError(
+                f"Upload no more than {MAX_LISTING_PHOTOS} photos."
+            )
         allowed_extensions = {".jpg", ".jpeg", ".png", ".webp"}
         for photo in photos:
             extension = "." + photo.name.rsplit(".", 1)[-1].lower() if "." in photo.name else ""
@@ -130,7 +145,7 @@ class OwnerListingForm(forms.Form):
                 raise forms.ValidationError(
                     "Photos must be JPG, PNG, or WEBP files."
                 )
-            if photo.size > 5 * 1024 * 1024:
+            if photo.size > MAX_LISTING_PHOTO_SIZE_BYTES:
                 raise forms.ValidationError("Each photo must be 5 MB or smaller.")
             try:
                 image = Image.open(photo)
@@ -151,3 +166,100 @@ class OwnerListingForm(forms.Form):
 class StaffRentalListingForm(OwnerListingForm):
     category = forms.ChoiceField(choices=RentalListing.Category.choices)
     status = forms.ChoiceField(choices=RentalListing.PublicationStatus.choices)
+    video = forms.FileField(
+        required=False,
+        widget=forms.FileInput(
+            attrs={
+                "accept": "video/mp4,video/quicktime,video/x-m4v,video/webm"
+            }
+        ),
+    )
+
+    def clean_video(self):
+        video = self.cleaned_data.get("video")
+        if not video:
+            return None
+        extension = Path(video.name).suffix.lower()
+        video_types = {
+            ".m4v": "video/x-m4v",
+            ".mov": "video/quicktime",
+            ".mp4": "video/mp4",
+            ".webm": "video/webm",
+        }
+        if extension not in video_types:
+            raise forms.ValidationError("Video must be MP4, MOV, M4V, or WEBM.")
+        if video.size > MAX_LISTING_VIDEO_SIZE_BYTES:
+            raise forms.ValidationError("Video must be 100 MB or smaller.")
+        try:
+            duration = _video_duration_seconds(video)
+        except FileNotFoundError as error:
+            raise forms.ValidationError(
+                "Video duration validation is unavailable. Please contact support."
+            ) from error
+        except (OSError, ValueError, subprocess.SubprocessError) as error:
+            raise forms.ValidationError(
+                "Upload a valid video with readable duration metadata."
+            ) from error
+        if not math.isfinite(duration) or duration <= 0:
+            raise forms.ValidationError("Upload a valid video with a measurable duration.")
+        if duration > MAX_LISTING_VIDEO_DURATION_SECONDS:
+            raise forms.ValidationError("Video must be no longer than 3 minutes.")
+        video.video_mime_type = video_types[extension]
+        video.seek(0)
+        return video
+
+
+def _video_duration_seconds(video):
+    extension = Path(video.name).suffix.lower()
+    if hasattr(video, "temporary_file_path"):
+        video_path = video.temporary_file_path()
+        return _probe_video_duration(video_path)
+
+    video_path = None
+    try:
+        with tempfile.NamedTemporaryFile(
+            suffix=extension,
+            delete=False,
+        ) as temp_video:
+            video_path = temp_video.name
+            for chunk in video.chunks():
+                temp_video.write(chunk)
+        return _probe_video_duration(video_path)
+    finally:
+        video.seek(0)
+        if video_path:
+            os.unlink(video_path)
+
+
+def _probe_video_duration(video_path):
+    result = subprocess.run(
+        [
+            "ffprobe",
+            "-v",
+            "error",
+            "-protocol_whitelist",
+            "file,pipe,data",
+            "-show_entries",
+            "format=duration:stream=codec_type",
+            "-of",
+            "json",
+            video_path,
+        ],
+        capture_output=True,
+        check=True,
+        text=True,
+        timeout=20,
+    )
+    metadata = json.loads(result.stdout)
+    if not isinstance(metadata, dict):
+        raise ValueError("Video metadata is malformed.")
+    streams = metadata.get("streams", [])
+    if not isinstance(streams, list) or not any(
+        isinstance(stream, dict) and stream.get("codec_type") == "video"
+        for stream in streams
+    ):
+        raise ValueError("No video stream found.")
+    try:
+        return float(metadata["format"]["duration"])
+    except (KeyError, TypeError, ValueError) as error:
+        raise ValueError("Video duration metadata is missing.") from error

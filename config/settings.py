@@ -5,6 +5,8 @@ from urllib.parse import urlsplit
 
 from dotenv import load_dotenv
 
+from rentals.upload_limits import MAX_LISTING_REQUEST_SIZE_BYTES
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(BASE_DIR / ".env")
 
@@ -86,6 +88,8 @@ SUPABASE_SERVICE_ROLE_KEY = (
     or os.getenv("SUPABASE_SECRET_KEY", "")
 )
 SUPABASE_STORAGE_BUCKET = "rental-listing-photos"
+SUPABASE_VIDEO_STORAGE_BUCKET = "rental-listing-videos"
+DATA_UPLOAD_MAX_MEMORY_SIZE = MAX_LISTING_REQUEST_SIZE_BYTES
 RENTAL_INSPECTION_WHATSAPP_NUMBER = os.getenv(
     "RENTAL_INSPECTION_WHATSAPP_NUMBER",
     "+2348127499576",

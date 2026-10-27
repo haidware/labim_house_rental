@@ -58,6 +58,7 @@ class RentalListing(models.Model):
         blank=True,
         validators=[MinValueValidator(1)],
     )
+    video_url = models.URLField(max_length=1000, blank=True)
     status = models.CharField(
         max_length=20,
         choices=PublicationStatus.choices,
