@@ -14,7 +14,10 @@ accounts to manage their listings.
 - Land/property search by location, city, listing type, and price at `/land`.
 - When served through the Rooms same-origin proxy, the app supports the
   `/rentals` mount path for its web assets, API requests, and internal links.
-- Public viewing requests saved for staff follow-up.
+- Public viewing requests saved for staff follow-up and opened as a detailed,
+  prefilled WhatsApp message to the landlord number assigned to that listing.
+  Guests must review and tap **Send** in WhatsApp; requests are not sent
+  automatically, and uploaded photos are not attached.
 - Home rental requests require property details and owner agreement to a
   verification visit; Rooms manages the visit, photos and listing setup.
 - Staff track new home requests, contact owners, schedule visits and record
@@ -75,10 +78,14 @@ rendered into HTML or sent to browser JavaScript.
 
 1. In the rental project's SQL Editor, run
    `supabase/migrations/0002_rest_api_backend.sql`, then
-   `supabase/migrations/0003_listing_videos.sql`. These migrations create the
-   API-backed listing and photo schema, configure public image and video
-   storage, restrict public data access with RLS, and create owner profiles
-   when Supabase Auth receives an owner sign-up.
+   `supabase/migrations/0003_listing_videos.sql`, then
+   `supabase/migrations/0004_listing_landlord_whatsapp.sql`. These migrations
+   create the API-backed listing and photo schema, configure public image and
+   video storage, restrict public data access with RLS, create owner profiles
+   when Supabase Auth receives an owner sign-up, and add a private WhatsApp
+   contact to each listing. The final migration limits public listing column
+   access so the landlord contact cannot be fetched through Supabase's public
+   API.
 2. Set `SUPABASE_URL`, `SUPABASE_ANON_KEY` (or `SUPABASE_PUBLISHABLE_KEY`),
    and `SUPABASE_SERVICE_ROLE_KEY` (or `SUPABASE_SECRET_KEY`) in the server's
    private environment variables. The publishable/anon key supports owner
@@ -89,10 +96,15 @@ rendered into HTML or sent to browser JavaScript.
    login. Use a long, randomly generated password and keep it private. Staff
    use the custom portal at `/staff/records/`; the Django admin login is no
    longer used in REST mode.
-4. Set `RENTAL_INSPECTION_WHATSAPP_NUMBER` to the Rooms WhatsApp number in
-   international format. Inspection requests are saved first, then WhatsApp
-   opens with the selected property, date, and customer details prefilled for
-   the customer to send.
+4. In the staff listing upload/edit form, assign each listing's landlord
+   WhatsApp number in international format (for example, `+234...`). This
+   number is not included in the public listing response or shown on property
+   cards. Inspection requests are saved first, then WhatsApp opens with the
+   property details and guest's contact/date details prefilled. The guest must
+   review the message and tap **Send** manually; the app does not send it or
+   attach uploaded images. Assign numbers to existing published listings too;
+   an inspection request for a listing without an assigned number is not saved
+   and displays a contact-support message.
 5. Owners request an account through the existing form, confirm their account
    according to the Supabase Auth project's email-confirmation settings, and
    wait for staff approval before signing in. Staff can approve owners and
@@ -136,8 +148,6 @@ configure these private service variables:
 - `SUPABASE_SECRET_KEY` (or `SUPABASE_SERVICE_ROLE_KEY`).
 - `RENTAL_STAFF_USERNAME` and `RENTAL_STAFF_PASSWORD`: the existing staff
   login; use a long, unique password.
-- `RENTAL_INSPECTION_WHATSAPP_NUMBER`: the Rooms WhatsApp number, if overriding
-  the default.
 
 The app automatically adds Railway's `RAILWAY_PUBLIC_DOMAIN` and Render's
 `RENDER_EXTERNAL_HOSTNAME` to `ALLOWED_HOSTS` and their HTTPS origins to

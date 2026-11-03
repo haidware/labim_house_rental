@@ -150,6 +150,16 @@ class RentalApiException implements Exception {
   final Map<String, String> errors;
 }
 
+class InspectionRequestSubmission {
+  const InspectionRequestSubmission({
+    required this.message,
+    required this.whatsappNumber,
+  });
+
+  final String message;
+  final String whatsappNumber;
+}
+
 class RentalApi {
   RentalApi({
     http.Client? client,
@@ -163,7 +173,6 @@ class RentalApi {
   final Future<bool> Function(Uri)? _whatsappLauncher;
   final String _proxyPrefix;
   String? _csrfToken;
-  String? inspectionWhatsAppNumber;
 
   Uri _uri(String path, [Map<String, String>? query]) =>
       Uri.base.resolve('$_proxyPrefix$path').replace(queryParameters: query);
@@ -223,7 +232,6 @@ class RentalApi {
     );
     final data = await _decode(response);
     _csrfToken = data['csrf_token']?.toString();
-    inspectionWhatsAppNumber = data['inspection_whatsapp']?.toString();
     return (
       listings: (data['listings'] as List<dynamic>? ?? const [])
           .whereType<Map<String, dynamic>>()
@@ -274,7 +282,7 @@ class RentalApi {
     return result['message']?.toString() ?? 'Your request was received.';
   }
 
-  Future<String> requestInspection({
+  Future<InspectionRequestSubmission> requestInspection({
     required RentalListing listing,
     required String guestName,
     required String email,
@@ -292,23 +300,36 @@ class RentalApi {
         'message': message,
       },
     );
-    return result['message']?.toString() ??
-        'Your viewing request was sent to Rooms.';
+    final whatsappNumber = result['whatsapp_number']?.toString().trim() ?? '';
+    if (whatsappNumber.isEmpty) {
+      throw const RentalApiException(
+        'The landlord WhatsApp number is not configured for this listing. Please contact Rooms.',
+      );
+    }
+    return InspectionRequestSubmission(
+      message: result['message']?.toString() ??
+          'Your viewing request was saved.',
+      whatsappNumber: whatsappNumber,
+    );
   }
 
   Uri? inspectionWhatsAppUri({
     required RentalListing listing,
+    required String whatsappNumber,
     required String guestName,
+    required String email,
     required String phone,
     required DateTime preferredDate,
     required String message,
   }) {
-    final recipient = inspectionWhatsAppNumber?.replaceAll(RegExp(r'\D'), '');
-    if (recipient == null || recipient.isEmpty) return null;
+    final recipient = whatsappNumber.replaceAll(RegExp(r'\D'), '');
+    if (recipient.isEmpty) return null;
     final details = [
       'Inspection request',
       'Property: ${listing.title}',
       'Location: ${listing.location}',
+      if (listing.description.isNotEmpty)
+        'Property details: ${listing.description}',
       'Listing type: ${listing.transactionType == 'sale' ? 'For sale' : 'For rent'}',
       if (listing.propertyType.isNotEmpty)
         'Property type: ${listing.propertyType}',
@@ -320,6 +341,7 @@ class RentalApi {
         'Rent: ${_naira.format(listing.monthlyRent)} approx. per month',
       'Preferred inspection date: ${DateFormat('EEE, d MMM yyyy').format(preferredDate)}',
       'Customer: $guestName',
+      'Customer email: $email',
       'Customer phone: $phone',
       if (message.isNotEmpty) 'Message: $message',
     ].join('\n');
@@ -1480,6 +1502,7 @@ class _InspectionDialogState extends State<_InspectionDialog> {
   final _message = TextEditingController();
   DateTime? _preferredDate;
   Uri? _savedWhatsAppUri;
+  String? _savedMessage;
   bool _requestSaved = false;
   bool _submitting = false;
   String? _error;
@@ -1518,7 +1541,8 @@ class _InspectionDialogState extends State<_InspectionDialog> {
       if (opened && mounted) {
         Navigator.pop(
           context,
-          'Inspection request saved. Review and send the prepared WhatsApp message.',
+          _savedMessage ??
+              'Inspection request saved. Review and send the prepared WhatsApp message.',
         );
       } else if (mounted) {
         setState(() => _error = 'WhatsApp did not open. Please try again.');
@@ -1548,9 +1572,12 @@ class _InspectionDialogState extends State<_InspectionDialog> {
         message: _message.text.trim(),
       );
       _requestSaved = true;
+      _savedMessage = result.message;
       _savedWhatsAppUri = widget.api.inspectionWhatsAppUri(
         listing: widget.listing,
+        whatsappNumber: result.whatsappNumber,
         guestName: _name.text.trim(),
+        email: _email.text.trim(),
         phone: _phone.text.trim(),
         preferredDate: _preferredDate!,
         message: _message.text.trim(),
@@ -1559,7 +1586,7 @@ class _InspectionDialogState extends State<_InspectionDialog> {
         if (mounted) {
           setState(
             () => _error =
-                '$result The WhatsApp contact number is not configured. Please contact Rooms.',
+                'The landlord WhatsApp number is invalid. Please contact Rooms.',
           );
         }
         return;
@@ -1595,6 +1622,11 @@ class _InspectionDialogState extends State<_InspectionDialog> {
               Text(
                 '${widget.listing.title} · ${widget.listing.city}, ${widget.listing.state}',
                 style: const TextStyle(color: _muted),
+              ),
+              const SizedBox(height: 8),
+              const Text(
+                'We will save your request and open a prepared WhatsApp message to the landlord. You must tap Send in WhatsApp; nothing is sent automatically.',
+                style: TextStyle(color: _muted),
               ),
               const SizedBox(height: 16),
               TextFormField(
@@ -1675,7 +1707,7 @@ class _InspectionDialogState extends State<_InspectionDialog> {
           _submitting
               ? 'Sending…'
               : !_requestSaved
-              ? 'Send Request'
+              ? 'Continue to WhatsApp'
               : _savedWhatsAppUri == null
               ? 'Request Saved'
               : 'Open WhatsApp',

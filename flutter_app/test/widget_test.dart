@@ -131,7 +131,8 @@ void main() {
                 return http.Response(
                   jsonEncode({
                     'message':
-                        'Your viewing request has been sent to Rooms. Our team will contact you.',
+                        'Your inspection request was saved. Review and send it to the landlord.',
+                    'whatsapp_number': '+2348099999999',
                   }),
                   201,
                   headers: {'content-type': 'application/json'},
@@ -157,6 +158,10 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('Request Inspection'));
     await tester.pumpAndSettle();
+    expect(
+      find.textContaining('You must tap Send in WhatsApp'),
+      findsOneWidget,
+    );
 
     await tester.enterText(find.byType(TextFormField).at(0), 'Guest Example');
     await tester.enterText(
@@ -168,7 +173,7 @@ void main() {
     await tester.pumpAndSettle();
     await tester.tap(find.text('OK'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Send Request'));
+    await tester.tap(find.text('Continue to WhatsApp'));
     await tester.pumpAndSettle();
 
     final submission = requests.last;
@@ -181,7 +186,7 @@ void main() {
     );
     expect(whatsappUris, hasLength(1));
     expect(whatsappUris.single.host, 'wa.me');
-    expect(whatsappUris.single.path, '/2348127499576');
+    expect(whatsappUris.single.path, '/2348099999999');
     expect(
       whatsappUris.single.queryParameters['text'],
       contains('Property: Verified family home'),
@@ -190,7 +195,15 @@ void main() {
       whatsappUris.single.queryParameters['text'],
       contains('Preferred inspection date:'),
     );
-    expect(find.textContaining('Inspection request saved'), findsOneWidget);
+    expect(
+      whatsappUris.single.queryParameters['text'],
+      contains('Customer email: guest@example.com'),
+    );
+    expect(
+      whatsappUris.single.queryParameters['text'],
+      isNot(contains('https://')),
+    );
+    expect(find.textContaining('inspection request was saved'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 }
@@ -203,7 +216,6 @@ MockClient _mockClient() => MockClient((request) async {
 http.Response _listingResponse() => http.Response(
   jsonEncode({
     'csrf_token': 'csrf-test-token',
-    'inspection_whatsapp': '+2348127499576',
     'cities': ['Lagos'],
     'listing_count': 1,
     'listings': [
@@ -232,7 +244,6 @@ http.Response _listingResponse() => http.Response(
 http.Response _landListingResponse() => http.Response(
   jsonEncode({
     'csrf_token': 'csrf-test-token',
-    'inspection_whatsapp': '+2348127499576',
     'cities': ['Lagos'],
     'listing_count': 1,
     'listings': [

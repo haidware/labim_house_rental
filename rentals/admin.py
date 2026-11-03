@@ -41,6 +41,7 @@ class RentalListingAdmin(admin.ModelAdmin):
         "state",
         "owner__username",
         "owner__email",
+        "landlord_whatsapp",
     )
     prepopulated_fields = {"slug": ("title",)}
     readonly_fields = ("created_at", "updated_at")

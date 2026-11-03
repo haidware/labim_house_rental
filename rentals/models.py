@@ -1,5 +1,6 @@
 from django.conf import settings
-from django.core.validators import MinValueValidator
+from django.core.exceptions import ValidationError
+from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
 from django.utils.text import slugify
 
@@ -46,6 +47,17 @@ class RentalListing(models.Model):
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     property_type = models.CharField(max_length=60, blank=True)
+    landlord_whatsapp = models.CharField(
+        max_length=40,
+        blank=True,
+        default="",
+        validators=[
+            RegexValidator(
+                regex=r"^\+[1-9]\d{7,14}$",
+                message="Enter an international WhatsApp number with country code.",
+            )
+        ],
+    )
     bedrooms = models.PositiveSmallIntegerField(default=1)
     bathrooms = models.PositiveSmallIntegerField(default=1)
     annual_rent = models.PositiveBigIntegerField(
@@ -76,6 +88,20 @@ class RentalListing(models.Model):
 
     def __str__(self):
         return self.title
+
+    def clean(self):
+        super().clean()
+        if (
+            self.status == self.PublicationStatus.PUBLISHED
+            and not self.landlord_whatsapp
+        ):
+            raise ValidationError(
+                {
+                    "landlord_whatsapp": (
+                        "Add the landlord WhatsApp number before publishing."
+                    )
+                }
+            )
 
     def save(self, *args, **kwargs):
         if not self.slug:

@@ -266,7 +266,6 @@ def public_api_listings(request):
 
     return JsonResponse({
         "csrf_token": get_token(request),
-        "inspection_whatsapp": settings.RENTAL_INSPECTION_WHATSAPP_NUMBER,
         "listings": [
             {
                 "id": listing.get("id"),
@@ -381,6 +380,17 @@ def public_api_inspection_request(request, slug):
             },
             status=400,
         )
+    whatsapp_number = (listing.get("landlord_whatsapp") or "").strip()
+    if not whatsapp_number:
+        return JsonResponse(
+            {
+                "error": (
+                    "The landlord WhatsApp number is not configured for this "
+                    "listing. Please contact Rooms."
+                )
+            },
+            status=503,
+        )
     values = {
         key: form.cleaned_data[key]
         for key in ("guest_name", "email", "phone", "preferred_date", "message")
@@ -400,8 +410,9 @@ def public_api_inspection_request(request, slug):
         {
             "message": (
                 "Your inspection request was saved. Continue in WhatsApp "
-                "to send it to Rooms."
-            )
+                "to review and send it to the landlord."
+            ),
+            "whatsapp_number": whatsapp_number,
         },
         status=201,
     )
@@ -750,6 +761,7 @@ def _staff_listing_form(request, listing=None):
             "sale_price",
             "bedrooms",
             "bathrooms",
+            "landlord_whatsapp",
             "category",
             "status",
         )
@@ -811,6 +823,7 @@ def _staff_listing_form(request, listing=None):
                     "sale_price",
                     "bedrooms",
                     "bathrooms",
+                    "landlord_whatsapp",
                     "category",
                     "status",
                 )
@@ -904,6 +917,33 @@ def staff_update_record(request, record_type, record_id):
     table, allowed_statuses = tables[record_type]
     if status not in allowed_statuses:
         raise Http404
+    if (
+        record_type == "listing"
+        and status == RentalListing.PublicationStatus.PUBLISHED
+    ):
+        try:
+            listing = row_by_id("rental_listings", record_id)
+        except APIError:
+            logger.exception(
+                "Could not verify landlord WhatsApp for rental listing %s.",
+                record_id,
+            )
+            messages.error(
+                request,
+                (
+                    "The listing could not be checked before publishing. "
+                    "Please try again."
+                ),
+            )
+            return redirect("staff_records")
+        if not listing:
+            raise Http404
+        if not (listing.get("landlord_whatsapp") or "").strip():
+            messages.error(
+                request,
+                "Add the landlord WhatsApp number before publishing this listing.",
+            )
+            return redirect("staff_records")
     values = {"status": status}
     if record_type in {"inspection", "property-request"}:
         values["staff_notes"] = notes

@@ -24,6 +24,7 @@
         {% for field in form %}
           <label for="{{ field.id_for_label }}">{{ field.label }}</label>
           {{ field }}
+          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
           {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
         {% endfor %}
         <p>Upload up to five valid JPG, PNG, or WEBP photos (5 MB maximum each). A listing can have five photos total.</p>

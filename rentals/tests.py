@@ -1,4 +1,7 @@
+from urllib.parse import parse_qs, urlsplit
+
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.urls import reverse
 from django.utils import timezone
@@ -32,6 +35,7 @@ class RentalAdminTests(TestCase):
             city="Abuja",
             state="FCT",
             annual_rent=2_400_000,
+            landlord_whatsapp="+2348012345678",
             status=RentalListing.PublicationStatus.PUBLISHED,
         )
 
@@ -55,6 +59,7 @@ class RentalAdminTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Homes available for rent")
         self.assertContains(response, "Bright family home")
+        self.assertNotContains(response, "+2348012345678")
         self.assertContains(response, "List a property")
         self.assertContains(response, "Rooms contacts the owner")
         self.assertContains(response, reverse("property_listing_request"))
@@ -126,11 +131,34 @@ class RentalAdminTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, f"{reverse('home')}#listings")
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(
+            response["Location"].startswith(
+                "https://wa.me/2348012345678?"
+            )
+        )
+        message = parse_qs(urlsplit(response["Location"]).query)["text"][0]
+        self.assertIn("Property: Bright family home", message)
+        self.assertIn("Customer email: renter@example.com", message)
+        self.assertIn("Please contact me about a viewing.", message)
+        self.assertNotIn("https://", message)
         inspection = InspectionRequest.objects.get()
         self.assertEqual(inspection.listing, self.listing)
         self.assertEqual(inspection.guest_name, "Renter Example")
         self.assertEqual(inspection.status, InspectionRequest.Status.NEW)
+
+    def test_published_listing_requires_landlord_whatsapp(self):
+        listing = RentalListing(
+            title="Listing without contact",
+            description="A test property.",
+            city="Abuja",
+            state="FCT",
+            annual_rent=1_200_000,
+            status=RentalListing.PublicationStatus.PUBLISHED,
+        )
+
+        with self.assertRaises(ValidationError):
+            listing.full_clean()
 
     def test_public_inspection_request_rejects_unpublished_listing(self):
         unpublished = RentalListing.objects.create(

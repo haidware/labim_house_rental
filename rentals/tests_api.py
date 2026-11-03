@@ -36,6 +36,7 @@ class SupabaseApiWorkflowTests(TestCase):
                     "bathrooms": 2,
                     "annual_rent": 1_200_000,
                     "video_url": "https://storage.example/house.mp4",
+                    "landlord_whatsapp": "+2348099999999",
                     "photos": [
                         {"image": "https://storage.example/house.jpg", "caption": ""}
                     ],
@@ -74,10 +75,7 @@ class SupabaseApiWorkflowTests(TestCase):
             "https://storage.example/house.mp4",
         )
         self.assertEqual(data["listings"][0]["monthly_rent"], 100000)
-        self.assertEqual(
-            data["inspection_whatsapp"],
-            "+2348127499576",
-        )
+        self.assertNotIn("landlord_whatsapp", data["listings"][0])
         self.assertTrue(data["csrf_token"])
         self.assertIn("csrftoken", response.cookies)
 
@@ -288,6 +286,7 @@ class SupabaseApiWorkflowTests(TestCase):
             "id": "listing-1",
             "category": "home",
             "transaction_type": "rent",
+            "landlord_whatsapp": "+2348099999999",
         }
         response = self.client.post(
             reverse("public_api_inspection_request", args=("lagos-home",)),
@@ -303,6 +302,7 @@ class SupabaseApiWorkflowTests(TestCase):
 
         self.assertEqual(response.status_code, 201)
         self.assertIn("inspection request was saved", response.json()["message"])
+        self.assertEqual(response.json()["whatsapp_number"], "+2348099999999")
         table, values = insert_record.call_args.args
         self.assertEqual(table, "rental_inspection_requests")
         self.assertEqual(values["listing_id"], "listing-1")
@@ -319,6 +319,7 @@ class SupabaseApiWorkflowTests(TestCase):
             "id": "land-1",
             "category": "land",
             "transaction_type": "sale",
+            "landlord_whatsapp": "+2348099999999",
         }
         response = self.client.post(
             reverse("public_api_inspection_request", args=("lekki-land",)),
@@ -336,6 +337,34 @@ class SupabaseApiWorkflowTests(TestCase):
             insert_record.call_args.args[1]["listing_id"],
             "land-1",
         )
+
+    @patch("rentals.api_views.insert")
+    @patch("rentals.api_views.listing_by_slug")
+    def test_flutter_inspection_requires_landlord_whatsapp_assignment(
+        self,
+        listing_by_slug,
+        insert_record,
+    ):
+        listing_by_slug.return_value = {
+            "id": "listing-1",
+            "category": "home",
+            "transaction_type": "rent",
+            "landlord_whatsapp": "",
+        }
+        response = self.client.post(
+            reverse("public_api_inspection_request", args=("lagos-home",)),
+            data={
+                "guest_name": "Guest Example",
+                "email": "guest@example.com",
+                "phone": "+2348012345678",
+                "preferred_date": "2026-11-01",
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 503)
+        self.assertIn("landlord WhatsApp number", response.json()["error"])
+        insert_record.assert_not_called()
 
     @patch("rentals.api_views.insert")
     @patch("rentals.api_views.listing_by_slug")
@@ -412,8 +441,11 @@ class SupabaseApiWorkflowTests(TestCase):
         "rentals.api_views.update",
         return_value={"id": 17, "status": "published"},
     )
-    @patch("rentals.api_views.rows", return_value=[])
-    def test_staff_can_publish_a_listing(self, rows, update_record):
+    @patch(
+        "rentals.api_views.row_by_id",
+        return_value={"id": 17, "landlord_whatsapp": "+2348099999999"},
+    )
+    def test_staff_can_publish_a_listing(self, row_by_id, update_record):
         self.client.post(
             reverse("accounts:login"),
             {
@@ -430,12 +462,40 @@ class SupabaseApiWorkflowTests(TestCase):
             {"status": "published"},
         )
 
-        self.assertRedirects(response, reverse("staff_records"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("staff_records"))
         update_record.assert_called_once_with(
             "rental_listings",
             "17",
             {"status": "published"},
         )
+
+    @patch("rentals.api_views.update")
+    @patch(
+        "rentals.api_views.row_by_id",
+        return_value={"id": 17, "landlord_whatsapp": ""},
+    )
+    def test_staff_cannot_publish_listing_without_landlord_whatsapp(
+        self,
+        row_by_id,
+        update_record,
+    ):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+
+        response = self.client.post(
+            reverse("staff_update_record", args=("listing", "17")),
+            {"status": "published"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("staff_records"))
+        update_record.assert_not_called()
 
     @patch(
         "rentals.api_views.insert",
@@ -465,6 +525,7 @@ class SupabaseApiWorkflowTests(TestCase):
                 "annual_rent": "2400000",
                 "bedrooms": "3",
                 "bathrooms": "2",
+                "landlord_whatsapp": "+2348099999999",
                 "status": "draft",
                 "action": "save",
             },
@@ -475,6 +536,7 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertEqual(table, "rental_listings")
         self.assertEqual(values["category"], "home")
         self.assertEqual(values["annual_rent"], 2_400_000)
+        self.assertEqual(values["landlord_whatsapp"], "+2348099999999")
         self.assertEqual(values["status"], "draft")
 
     def test_staff_can_upload_listing_photos(self):
@@ -542,6 +604,7 @@ class SupabaseApiWorkflowTests(TestCase):
                     "annual_rent": "2400000",
                     "bedrooms": "3",
                     "bathrooms": "2",
+                    "landlord_whatsapp": "+2348099999999",
                     "status": "draft",
                     "action": "save",
                     "photos": photos,
@@ -581,6 +644,7 @@ class SupabaseApiWorkflowTests(TestCase):
             "annual_rent": "2400000",
             "bedrooms": "3",
             "bathrooms": "2",
+            "landlord_whatsapp": "+2348099999999",
             "category": "home",
             "status": "draft",
         }
@@ -596,6 +660,27 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertFalse(form.is_valid())
         self.assertIn("no more than 5 photos", str(form.errors["photos"]))
 
+    def test_staff_listing_requires_an_international_whatsapp_number(self):
+        from .api_forms import StaffRentalListingForm
+
+        data = {
+            "title": "Verified family home",
+            "description": "A verified listing.",
+            "city": "Abuja",
+            "state": "FCT",
+            "transaction_type": "rent",
+            "annual_rent": "2400000",
+            "bedrooms": "3",
+            "bathrooms": "2",
+            "category": "home",
+            "status": "draft",
+            "landlord_whatsapp": "08012345678",
+        }
+        form = StaffRentalListingForm(data=data)
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("international WhatsApp number", str(form.errors["landlord_whatsapp"]))
+
     def test_staff_listing_video_must_not_exceed_three_minutes(self):
         from .api_forms import StaffRentalListingForm
 
@@ -608,6 +693,7 @@ class SupabaseApiWorkflowTests(TestCase):
             "annual_rent": "2400000",
             "bedrooms": "3",
             "bathrooms": "2",
+            "landlord_whatsapp": "+2348099999999",
             "category": "home",
             "status": "draft",
         }

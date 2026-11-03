@@ -1,6 +1,7 @@
 import json
 import math
 import os
+import re
 import subprocess
 import tempfile
 from pathlib import Path
@@ -166,6 +167,14 @@ class OwnerListingForm(forms.Form):
 class StaffRentalListingForm(OwnerListingForm):
     category = forms.ChoiceField(choices=RentalListing.Category.choices)
     status = forms.ChoiceField(choices=RentalListing.PublicationStatus.choices)
+    landlord_whatsapp = forms.CharField(
+        max_length=40,
+        label="Landlord WhatsApp number (include country code)",
+        widget=forms.TelInput(
+            attrs={"autocomplete": "tel", "placeholder": "+2348012345678"}
+        ),
+        help_text="Used only to open the guest's prepared WhatsApp message.",
+    )
     video = forms.FileField(
         required=False,
         widget=forms.FileInput(
@@ -207,6 +216,19 @@ class StaffRentalListingForm(OwnerListingForm):
         video.video_mime_type = video_types[extension]
         video.seek(0)
         return video
+
+    def clean_landlord_whatsapp(self):
+        value = self.cleaned_data["landlord_whatsapp"].strip()
+        if not re.fullmatch(r"\+?[0-9\s().-]+", value):
+            raise forms.ValidationError(
+                "Enter a WhatsApp number with country code using digits only."
+            )
+        digits = "".join(character for character in value if character.isdigit())
+        if not 8 <= len(digits) <= 15 or digits.startswith("0"):
+            raise forms.ValidationError(
+                "Enter an international WhatsApp number with 8 to 15 digits."
+            )
+        return f"+{digits}"
 
 
 def _video_duration_seconds(video):

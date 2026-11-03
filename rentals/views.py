@@ -1,3 +1,5 @@
+from urllib.parse import urlencode
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
@@ -8,7 +10,6 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.views.decorators.http import require_GET, require_POST
-
 from .forms import (
     ListingPhotoFormSet,
     OwnerAccountRequestForm,
@@ -106,14 +107,49 @@ def public_inspection_request(request, slug):
     )
     form = PublicInspectionRequestForm(request.POST)
     if form.is_valid():
+        whatsapp_number = "".join(
+            character
+            for character in listing.landlord_whatsapp
+            if character.isdigit()
+        )
+        if not whatsapp_number:
+            form.add_error(
+                None,
+                (
+                    "The landlord WhatsApp number is not configured for this "
+                    "listing. Please contact Rooms."
+                ),
+            )
+            return _render_public_home(
+                request,
+                inspection_form=form,
+                inspection_listing=listing,
+            )
         inspection = form.save(commit=False)
         inspection.listing = listing
         inspection.save()
-        messages.success(
-            request,
-            "Your viewing request has been sent to Rooms. Our team will contact you.",
+        details = [
+            "Inspection request",
+            f"Property: {listing.title}",
+            (
+                "Location: "
+                + ", ".join(filter(None, (listing.address, listing.city, listing.state)))
+            ),
+            f"Description: {listing.description}",
+            f"Property type: {listing.property_type}" if listing.property_type else "",
+            f"Bedrooms: {listing.bedrooms}" if listing.bedrooms else "",
+            f"Bathrooms: {listing.bathrooms}" if listing.bathrooms else "",
+            f"Rent: NGN {((listing.annual_rent or 0) + 11) // 12:,} approx. per month",
+            f"Preferred inspection date: {inspection.preferred_date.isoformat()}",
+            f"Customer: {inspection.guest_name}",
+            f"Customer email: {inspection.email}",
+            f"Customer phone: {inspection.phone}",
+            f"Message: {inspection.message}" if inspection.message else "",
+        ]
+        message = "\n".join(item for item in details if item)
+        return redirect(
+            f"https://wa.me/{whatsapp_number}?{urlencode({'text': message})}"
         )
-        return redirect(f"{reverse('home')}#listings")
 
     return _render_public_home(
         request,

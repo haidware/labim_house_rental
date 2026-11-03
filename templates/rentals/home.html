@@ -325,7 +325,7 @@
         <div class="dialog-head">
           <div>
             <h2 id="inspectionTitle">Request a viewing</h2>
-            <p id="inspectionDescription">Leave your contact details and Rooms will follow up to arrange a viewing.</p>
+            <p id="inspectionDescription">Enter your details. We will save your request and open a prepared WhatsApp message to the landlord for you to send.</p>
           </div>
           <button class="close-button" type="button" aria-label="Close viewing request" onclick="closeInspection()">×</button>
         </div>
@@ -341,8 +341,8 @@
             {% endfor %}
             {% for error in inspection_form.non_field_errors %}<p class="errors full">{{ error }}</p>{% endfor %}
           </div>
-          <p class="form-note">Your request is sent to Rooms for follow-up. No payment is taken through this form.</p>
-          <button class="button button-teal" type="submit">Send viewing request</button>
+          <p class="form-note">Your request is saved, then a prepared WhatsApp message opens. You must tap Send in WhatsApp; nothing is sent automatically, and photos are not attached.</p>
+          <button class="button button-teal" type="submit">Continue to WhatsApp</button>
         </form>
       </div>
     </div>
@@ -357,7 +357,7 @@
       function openInspection(button) {
         inspectionForm.action = button.dataset.inspectionUrl;
         inspectionTitle.textContent = "Request a viewing";
-        inspectionDescription.textContent = "Viewing request for " + button.dataset.listingTitle + " in " + button.dataset.listingLocation + ". Rooms will follow up to arrange a viewing.";
+        inspectionDescription.textContent = "Viewing request for " + button.dataset.listingTitle + " in " + button.dataset.listingLocation + ". We will save your request and open a prepared WhatsApp message to the landlord for you to send.";
         if (inspectionMessage && !inspectionMessage.value) {
           inspectionMessage.value = "Interested in viewing: " + button.dataset.listingTitle + " — " + button.dataset.listingLocation;
         }
@@ -379,7 +379,7 @@
 
       {% if inspection_listing %}
         inspectionTitle.textContent = "Request a viewing";
-        inspectionDescription.textContent = "Viewing request for {{ inspection_listing.title|escapejs }} in {{ inspection_listing.city|escapejs }}, {{ inspection_listing.state|escapejs }}.";
+        inspectionDescription.textContent = "Viewing request for {{ inspection_listing.title|escapejs }} in {{ inspection_listing.city|escapejs }}, {{ inspection_listing.state|escapejs }}. We will save your request and open a prepared WhatsApp message to the landlord for you to send.";
         document.body.style.overflow = "hidden";
       {% endif %}
     </script>
