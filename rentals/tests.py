@@ -60,9 +60,18 @@ class RentalAdminTests(TestCase):
         self.assertContains(response, "Homes available for rent")
         self.assertContains(response, "Bright family home")
         self.assertNotContains(response, "+2348012345678")
-        self.assertContains(response, "List a property")
+        self.assertContains(response, "Own a home for rent?")
+        self.assertContains(response, "List a home for rent")
         self.assertContains(response, "Rooms contacts the owner")
         self.assertContains(response, reverse("property_listing_request"))
+        page = response.content.decode()
+        banner_position = page.index('class="owner-banner"')
+        search_position = page.index('id="search"')
+        how_it_works_position = page.index('id="how-it-works"')
+        self.assertLess(banner_position, search_position)
+        self.assertLess(page.index("List a home for rent"), search_position)
+        self.assertGreater(how_it_works_position, search_position)
+        self.assertNotIn("List a home for rent", page[how_it_works_position:])
 
     def test_home_page_only_shows_published_homes_for_rent(self):
         RentalListing.objects.create(

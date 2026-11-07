@@ -54,6 +54,10 @@ void main() {
         tester.getTopLeft(find.byIcon(Icons.home_outlined).last).dy,
       );
       expect(find.text('Find your next home'), findsOneWidget);
+      final listHomeButton = find.text('List a home for rent');
+      expect(listHomeButton, findsOneWidget);
+      expect(tester.getTopLeft(listHomeButton).dy, lessThan(844));
+      expect(find.text('Own a property?'), findsNothing);
       await tester.scrollUntilVisible(
         find.text('Verified family home'),
         500,

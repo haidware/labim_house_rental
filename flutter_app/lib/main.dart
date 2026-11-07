@@ -681,6 +681,10 @@ class _RentalHomePageState extends State<RentalHomePage> {
                   : 'Choose from homes available for rent, reviewed by Rooms.',
               style: const TextStyle(color: _muted, fontSize: 17, height: 1.5),
             ),
+            if (!widget.landProperties) ...[
+              const SizedBox(height: 18),
+              _buildHomeListingBanner(),
+            ],
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(18),
@@ -794,6 +798,57 @@ class _RentalHomePageState extends State<RentalHomePage> {
           ],
         ),
       ),
+    ),
+  );
+
+  Widget _buildHomeListingBanner() => Container(
+    padding: const EdgeInsets.all(18),
+    decoration: BoxDecoration(
+      color: _navy,
+      borderRadius: BorderRadius.circular(16),
+    ),
+    child: LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 620;
+        final copy = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            const Text(
+              'Own a home for rent?',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 4),
+            const Text(
+              'Apply to list your home with Rooms.',
+              style: TextStyle(color: Color(0xFFD7E4E6), fontSize: 13),
+            ),
+          ],
+        );
+        final button = FilledButton(
+          onPressed: _showPropertyRequest,
+          style: FilledButton.styleFrom(
+            backgroundColor: _gold,
+            foregroundColor: _navy,
+          ),
+          child: const Text('List a home for rent'),
+        );
+        return compact
+            ? Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [copy, const SizedBox(height: 12), button],
+              )
+            : Row(
+                children: [
+                  Expanded(child: copy),
+                  const SizedBox(width: 16),
+                  button,
+                ],
+              );
+      },
     ),
   );
 
@@ -986,46 +1041,31 @@ class _RentalHomePageState extends State<RentalHomePage> {
                   ],
                 ),
               ),
-              _InfoCard(
-                title: 'Own a property?',
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      widget.landProperties
-                          ? 'Land and property listings use the same Rooms review portal. Request an owner account, then submit listings for Haidware staff review.'
-                          : 'Send us the property address and your contact details. Rooms will arrange a visit and handle verification, photos and listing setup.',
-                      style: TextStyle(color: _muted, height: 1.5),
-                    ),
-                    const SizedBox(height: 14),
-                    FilledButton(
-                      onPressed: widget.landProperties
-                          ? () => _openInternal(
-                              '/accounts/request-owner-account/?owner_type=land',
-                            )
-                          : _showPropertyRequest,
-                      style: FilledButton.styleFrom(backgroundColor: _teal),
-                      child: Text(
-                        widget.landProperties
-                            ? 'Request land/property account'
-                            : 'List a home for rent',
+              if (widget.landProperties)
+                _InfoCard(
+                  title: 'Own a property?',
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Land and property listings use the same Rooms review portal. Request an owner account, then submit listings for Haidware staff review.',
+                        style: TextStyle(color: _muted, height: 1.5),
                       ),
-                    ),
-                    TextButton(
-                      onPressed: widget.landProperties
-                          ? () => _openInternal('/')
-                          : () => _openInternal(
-                              '/accounts/request-owner-account/?owner_type=land',
-                            ),
-                      child: Text(
-                        widget.landProperties
-                            ? 'Browse homes for rent →'
-                            : 'List land or property →',
+                      const SizedBox(height: 14),
+                      FilledButton(
+                        onPressed: () => _openInternal(
+                          '/accounts/request-owner-account/?owner_type=land',
+                        ),
+                        style: FilledButton.styleFrom(backgroundColor: _teal),
+                        child: const Text('Request land/property account'),
                       ),
-                    ),
-                  ],
+                      TextButton(
+                        onPressed: () => _openInternal('/'),
+                        child: const Text('Browse homes for rent →'),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
             ];
             return Wrap(
               spacing: 18,
@@ -1034,6 +1074,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
                 for (final card in cards)
                   SizedBox(
                     width: constraints.maxWidth < 700
+                        ? constraints.maxWidth
+                        : cards.length == 1
                         ? constraints.maxWidth
                         : (constraints.maxWidth - 18) / 2,
                     child: card,

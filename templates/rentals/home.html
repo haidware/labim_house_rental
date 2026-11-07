@@ -88,6 +88,7 @@
       .empty-state h3 { margin: 0 0 8px; font-size: 19px; }
       .empty-state p { max-width: 470px; margin: 0 auto 16px; color: var(--muted); line-height: 1.5; }
       .info-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 28px; }
+      .info-grid-single { grid-template-columns: 1fr; }
       .info-card { padding: 19px; border: 1px solid var(--line); border-radius: 15px; background: white; }
       .info-card h2 { margin: 0 0 8px; color: var(--navy); font-size: 17px; }
       .info-card p, .info-card li { color: var(--muted); font-size: 13px; line-height: 1.55; }
@@ -128,6 +129,8 @@
         .hero { padding: 48px 0 17px; }
         h1 { font-size: clamp(34px, 9vw, 42px); letter-spacing: -1.2px; }
         .intro { margin: 11px 0 19px; font-size: 16px; }
+        .owner-banner { align-items: stretch; flex-direction: column; }
+        .owner-banner .button { width: 100%; }
         .search-panel { grid-template-columns: 1fr; gap: 15px; margin-top: 22px; padding: 25px 22px; border-radius: 22px; }
         .field label { margin-left: 12px; font-size: 12px; }
         .field input, .field select { min-height: 64px; padding: 14px 15px; font-size: 17px; }
@@ -182,7 +185,6 @@
       <nav class="category-nav" aria-label="Property categories">
         <a class="category-tab" href="https://labimbooking-production.up.railway.app/">Hotels</a>
         <a class="category-tab active" href="{% url 'home' %}#listings" aria-current="page">Homes</a>
-        <a class="category-tab action" href="{% url 'property_listing_request' %}">List a property</a>
       </nav>
     </div>
 
@@ -194,6 +196,13 @@
               <div>
                 <h1>Find your next home</h1>
                 <p class="intro">Choose from homes available for rent, reviewed by Rooms.</p>
+                <div class="owner-banner">
+                  <div>
+                    <h2>Own a home for rent?</h2>
+                    <p>Apply to list your home with Rooms.</p>
+                  </div>
+                  <a class="button" href="{% url 'property_listing_request' %}">List a home for rent</a>
+                </div>
               </div>
             </div>
 
@@ -294,7 +303,7 @@
           </div>
         {% endif %}
 
-        <div class="info-grid" id="how-it-works">
+        <div class="info-grid info-grid-single" id="how-it-works">
           <section class="info-card">
             <h2>How Rooms works</h2>
             <ol>
@@ -303,14 +312,6 @@
               <li>Rooms handles property photos and prepares the listing details.</li>
               <li>The verified listing is reviewed before it is published.</li>
             </ol>
-          </section>
-          <section class="info-card">
-            <h2>Own a property?</h2>
-            <p>Send us the property address and your contact details. Rooms will arrange a visit and handle the verification, photos and listing setup.</p>
-            <div class="owner-links">
-              <a href="{% url 'property_listing_request' %}">List a home for rent →</a>
-              <a href="{% url 'accounts:owner_request' %}?owner_type=land">List land or property →</a>
-            </div>
           </section>
         </div>
       </section>
