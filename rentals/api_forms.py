@@ -177,12 +177,21 @@ class StaffRentalListingForm(OwnerListingForm):
     )
     video = forms.FileField(
         required=False,
+        label="Property video",
         widget=forms.FileInput(
             attrs={
                 "accept": "video/mp4,video/quicktime,video/x-m4v,video/webm"
             }
         ),
     )
+    video_path = forms.CharField(required=False, widget=forms.HiddenInput)
+    video_duration = forms.CharField(required=False, widget=forms.HiddenInput)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("video") and cleaned_data.get("video_path"):
+            self.add_error("video", "Upload the video only once.")
+        return cleaned_data
 
     def clean_video(self):
         video = self.cleaned_data.get("video")

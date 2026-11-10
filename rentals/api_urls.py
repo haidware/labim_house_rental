@@ -71,6 +71,11 @@ urlpatterns = [
         name="staff_listing_edit",
     ),
     path(
+        "staff/listings/<int:pk>/video-upload/",
+        api_views.staff_listing_video_upload,
+        name="staff_listing_video_upload",
+    ),
+    path(
         "staff/<str:record_type>/<str:record_id>/",
         api_views.staff_update_record,
         name="staff_update_record",

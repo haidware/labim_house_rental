@@ -1,9 +1,13 @@
 import logging
 import json
+import math
 import mimetypes
 import os
+import re
 import secrets
 from functools import wraps
+from pathlib import Path
+from urllib.parse import urlsplit
 from uuid import uuid4
 
 from django.conf import settings
@@ -18,6 +22,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
+from httpx import HTTPError
 from postgrest.exceptions import APIError
 from storage3.exceptions import StorageException
 from supabase_auth.errors import AuthApiError
@@ -45,7 +50,11 @@ from .supabase_api import (
     upload_listing_video,
 )
 from .forms import PublicInspectionRequestForm
-from .upload_limits import MAX_LISTING_PHOTOS
+from .upload_limits import (
+    MAX_LISTING_PHOTOS,
+    MAX_LISTING_VIDEO_DURATION_SECONDS,
+    MAX_LISTING_VIDEO_SIZE_BYTES,
+)
 
 
 logger = logging.getLogger(__name__)
@@ -746,6 +755,83 @@ def staff_listing_edit(request, pk):
     return _staff_listing_form(request, listing)
 
 
+@never_cache
+@require_POST
+@_staff_required
+def staff_listing_video_upload(request, pk):
+    listing = row_by_id("rental_listings", pk)
+    if not listing:
+        raise Http404
+    try:
+        payload = json.loads(request.body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        return JsonResponse({"error": "Send video details as JSON."}, status=400)
+    if not isinstance(payload, dict):
+        return JsonResponse({"error": "Send video details as JSON."}, status=400)
+
+    filename = Path(str(payload.get("filename", "")).replace("\\", "/")).name
+    extension = Path(filename).suffix.lower()
+    video_types = {
+        ".m4v": "video/x-m4v",
+        ".mov": "video/quicktime",
+        ".mp4": "video/mp4",
+        ".webm": "video/webm",
+    }
+    content_type = video_types.get(extension)
+    try:
+        size = int(payload.get("size", 0))
+    except (TypeError, ValueError):
+        size = 0
+    if not content_type or payload.get("content_type") != content_type:
+        return JsonResponse(
+            {"error": "Choose an MP4, MOV, M4V, or WEBM video."},
+            status=400,
+        )
+    if size <= 0 or size > MAX_LISTING_VIDEO_SIZE_BYTES:
+        return JsonResponse(
+            {"error": "Video must be between 1 byte and 100 MB."},
+            status=400,
+        )
+
+    path = f"{pk}/{uuid4().hex}{extension}"
+    try:
+        signed_upload = admin_client().storage.from_(
+            settings.SUPABASE_VIDEO_STORAGE_BUCKET
+        ).create_signed_upload_url(path)
+    except (APIError, HTTPError, StorageException):
+        logger.exception("Could not prepare listing video upload for %s.", pk)
+        return JsonResponse(
+            {"error": "Could not prepare the video upload. Please try again."},
+            status=502,
+        )
+    storage_host = urlsplit(settings.SUPABASE_URL).hostname or ""
+    if storage_host.endswith(".supabase.co"):
+        project_ref = storage_host.removesuffix(".supabase.co")
+        resumable_endpoint = (
+            f"https://{project_ref}.storage.supabase.co"
+            "/storage/v1/upload/resumable/sign"
+        )
+    else:
+        resumable_endpoint = (
+            f"{settings.SUPABASE_URL.rstrip('/')}"
+            "/storage/v1/upload/resumable/sign"
+        )
+    token = signed_upload.get("token") if isinstance(signed_upload, dict) else None
+    if not token:
+        logger.error("Supabase returned no signed-upload token for listing %s.", pk)
+        return JsonResponse(
+            {"error": "Could not prepare the video upload. Please try again."},
+            status=502,
+        )
+    return JsonResponse(
+        {
+            "path": path,
+            "token": token,
+            "resumable_endpoint": resumable_endpoint,
+        }
+    )
+
+
 def _staff_listing_form(request, listing=None):
     initial = {
         key: listing.get(key)
@@ -770,11 +856,33 @@ def _staff_listing_form(request, listing=None):
         "transaction_type": RentalListing.TransactionType.RENT,
         "status": RentalListing.PublicationStatus.DRAFT,
     }
+    wants_json = "application/json" in request.headers.get("Accept", "")
+    form_data = request.POST.copy() if request.method == "POST" else None
+    if wants_json and form_data is not None and not listing:
+        form_data["status"] = RentalListing.PublicationStatus.DRAFT
     form = StaffRentalListingForm(
-        request.POST or None,
+        form_data,
         request.FILES or None,
         initial=initial,
     )
+
+    def form_response():
+        if wants_json:
+            return JsonResponse(
+                {
+                    "error": (
+                        form.errors.as_text()
+                        or "The listing could not be saved. Please try again."
+                    )
+                },
+                status=400,
+            )
+        return render(
+            request,
+            "rentals/staff_listing_form.html",
+            {"form": form, "listing": listing},
+        )
+
     if request.method == "POST" and form.is_valid():
         data = form.cleaned_data
         action = request.POST.get("action")
@@ -794,21 +902,13 @@ def _staff_listing_form(request, listing=None):
                     None,
                     "The listing photos could not be checked. Please try again.",
                 )
-                return render(
-                    request,
-                    "rentals/staff_listing_form.html",
-                    {"form": form, "listing": listing},
-                )
+                return form_response()
             if len(existing_photos) + len(photos) > MAX_LISTING_PHOTOS:
                 form.add_error(
                     "photos",
                     f"A listing can have no more than {MAX_LISTING_PHOTOS} photos total.",
                 )
-                return render(
-                    request,
-                    "rentals/staff_listing_form.html",
-                    {"form": form, "listing": listing},
-                )
+                return form_response()
             values = {
                 key: data[key]
                 for key in (
@@ -834,6 +934,94 @@ def _staff_listing_form(request, listing=None):
                     "updated_at": timezone.now().isoformat(),
                 }
             )
+            video_path = data.get("video_path", "").strip()
+            if video_path:
+                expected_path = (
+                    re.fullmatch(
+                        rf"{re.escape(str(listing['id']))}/"
+                        r"[a-f0-9]{32}\.(?:m4v|mov|mp4|webm)",
+                        video_path,
+                    )
+                    if listing
+                    else None
+                )
+                try:
+                    duration = float(data.get("video_duration", ""))
+                except (TypeError, ValueError):
+                    duration = float("nan")
+                if (
+                    not expected_path
+                    or not math.isfinite(duration)
+                    or duration <= 0
+                    or duration > MAX_LISTING_VIDEO_DURATION_SECONDS
+                ):
+                    form.add_error(
+                        "video",
+                        "The uploaded video must be no longer than 3 minutes.",
+                    )
+                    return form_response()
+                try:
+                    storage = admin_client().storage.from_(
+                        settings.SUPABASE_VIDEO_STORAGE_BUCKET
+                    )
+                    video_info = storage.info(video_path)
+                    metadata = video_info.get("metadata") or {}
+                    stored_size = int(
+                        metadata.get(
+                            "size",
+                            metadata.get(
+                                "contentLength",
+                                video_info.get(
+                                    "size",
+                                    video_info.get("contentLength", 0),
+                                ),
+                            ),
+                        )
+                    )
+                    stored_type = (
+                        metadata.get("mimetype")
+                        or metadata.get("contentType")
+                        or metadata.get("content_type")
+                        or video_info.get("mimetype")
+                        or video_info.get("contentType")
+                        or video_info.get("content_type")
+                        or ""
+                    )
+                    expected_type = {
+                        ".m4v": "video/x-m4v",
+                        ".mov": "video/quicktime",
+                        ".mp4": "video/mp4",
+                        ".webm": "video/webm",
+                    }[Path(video_path).suffix.lower()]
+                    if stored_size <= 0 or stored_size > MAX_LISTING_VIDEO_SIZE_BYTES:
+                        raise ValueError(
+                            "The uploaded video must be 100 MB or smaller."
+                        )
+                    if (
+                        stored_type
+                        and stored_type.split(";", 1)[0].strip().lower()
+                        not in {expected_type, "application/octet-stream"}
+                    ):
+                        raise ValueError(
+                            "The uploaded video has an invalid file type."
+                        )
+                    values["video_url"] = storage.get_public_url(video_path)
+                except (
+                    StorageException,
+                    APIError,
+                    HTTPError,
+                    ValueError,
+                    TypeError,
+                ):
+                    logger.exception(
+                        "Could not verify uploaded video for listing %s.",
+                        listing["id"] if listing else "new listing",
+                    )
+                    form.add_error(
+                        "video",
+                        "The uploaded video could not be verified. Please retry.",
+                    )
+                    return form_response()
             try:
                 if listing:
                     saved_listing = update(
@@ -850,11 +1038,7 @@ def _staff_listing_form(request, listing=None):
                         None,
                         "The listing could not be saved. Please try again.",
                     )
-                    return render(
-                        request,
-                        "rentals/staff_listing_form.html",
-                        {"form": form, "listing": listing},
-                    )
+                    return form_response()
                 if photos:
                     next_position = len(existing_photos)
                     for offset, photo in enumerate(photos):
@@ -864,6 +1048,20 @@ def _staff_listing_form(request, listing=None):
                             next_position + offset,
                         )
                         insert("rental_listing_photos", photo_data)
+                if wants_json:
+                    return JsonResponse(
+                        {
+                            "listing_id": saved_listing["id"],
+                            "edit_url": reverse(
+                                "staff_listing_edit",
+                                args=(saved_listing["id"],),
+                            ),
+                            "upload_url": reverse(
+                                "staff_listing_video_upload",
+                                args=(saved_listing["id"],),
+                            ),
+                        }
+                    )
                 video = data.get("video")
                 if video:
                     video_url = upload_listing_video(video, saved_listing["id"])
@@ -877,11 +1075,7 @@ def _staff_listing_form(request, listing=None):
                             "video",
                             "The video was uploaded, but its listing could not be updated. Please retry.",
                         )
-                        return render(
-                            request,
-                            "rentals/staff_listing_form.html",
-                            {"form": form, "listing": listing},
-                        )
+                        return form_response()
             except (APIError, StorageException):
                 logger.exception("Could not save staff rental listing.")
                 form.add_error(
@@ -891,11 +1085,7 @@ def _staff_listing_form(request, listing=None):
             else:
                 messages.success(request, "The listing was saved.")
                 return redirect("staff_records")
-    return render(
-        request,
-        "rentals/staff_listing_form.html",
-        {"form": form, "listing": listing},
-    )
+    return form_response()
 
 
 @require_POST

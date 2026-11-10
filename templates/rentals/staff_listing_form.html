@@ -10,31 +10,52 @@
       label { display: block; margin-top: 14px; font-weight: 600; }
       input, select, textarea { box-sizing: border-box; width: 100%; margin-top: 5px; padding: 9px; border: 1px solid #bdcbd4; border-radius: 6px; }
       button { margin-top: 18px; padding: 10px 14px; border: 0; border-radius: 6px; background: #17607a; color: white; font-weight: 600; cursor: pointer; }
+      button:disabled { opacity: .6; cursor: wait; }
       a { color: #17607a; }
       .errors { color: #9a2f25; }
+      .video-upload { margin: 18px 0; padding: 16px; border: 1px solid #dce5eb; border-radius: 10px; background: #f7fafb; }
+      .video-upload progress { width: 100%; height: 12px; margin-top: 12px; }
+      .video-upload progress[hidden] { display: none; }
+      .video-upload-status { min-height: 1.4em; margin: 10px 0 0; color: #36545f; }
+      .current-video { display: block; width: min(100%, 480px); max-height: 270px; margin-top: 12px; background: #111; }
     </style>
   </head>
   <body>
     <main>
       <h1>{% if listing %}Edit{% else %}Create{% endif %} rental listing</h1>
       <p>Rooms manages property verification, photos, video, and publication status.</p>
-      <form method="post" enctype="multipart/form-data">
+      <form
+        method="post"
+        enctype="multipart/form-data"
+        data-rental-video-upload
+        data-new-listing="{% if listing %}false{% else %}true{% endif %}"
+      >
         {% csrf_token %}
         {% for error in form.non_field_errors %}<p class="errors">{{ error }}</p>{% endfor %}
         {% for field in form %}
-          <label for="{{ field.id_for_label }}">{{ field.label }}</label>
-          {{ field }}
-          {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
-          {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+          {% if field.is_hidden %}
+            {{ field }}
+          {% else %}
+            <label for="{{ field.id_for_label }}">{{ field.label }}</label>
+            {{ field }}
+            {% if field.help_text %}<small>{{ field.help_text }}</small>{% endif %}
+            {% for error in field.errors %}<p class="errors">{{ error }}</p>{% endfor %}
+          {% endif %}
         {% endfor %}
         <p>Upload up to five valid JPG, PNG, or WEBP photos (5 MB maximum each). A listing can have five photos total.</p>
-        <p>Optional: upload one MP4, MOV, M4V, or WEBM video up to 3 minutes and 100 MB.</p>
+        <p>Optional: upload one MP4, MOV, M4V, or WEBM video up to 3 minutes and 100 MB. Upload progress is shown here.</p>
         {% if listing.video_url %}
           <p>Current video: <a href="{{ listing.video_url }}" target="_blank" rel="noopener">View uploaded video</a></p>
+          <video class="current-video" controls playsinline preload="metadata" src="{{ listing.video_url }}">Your browser does not support video playback.</video>
         {% endif %}
         <button type="submit" name="action" value="save">Save listing</button>
+        <div class="video-upload" aria-live="polite">
+          <progress max="100" value="0" hidden></progress>
+          <p class="video-upload-status"></p>
+        </div>
       </form>
       <p><a href="{% url 'staff_records' %}">Back to rental records</a></p>
     </main>
+    <script>{% include "rentals/rental_video_upload.js" %}</script>
   </body>
 </html>

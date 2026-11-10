@@ -1,8 +1,9 @@
 from io import BytesIO
+import json
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -531,13 +532,260 @@ class SupabaseApiWorkflowTests(TestCase):
             },
         )
 
-        self.assertRedirects(response, reverse("staff_records"))
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("staff_records"))
         table, values = insert_record.call_args.args
         self.assertEqual(table, "rental_listings")
         self.assertEqual(values["category"], "home")
         self.assertEqual(values["annual_rent"], 2_400_000)
         self.assertEqual(values["landlord_whatsapp"], "+2348099999999")
         self.assertEqual(values["status"], "draft")
+
+    @patch(
+        "rentals.api_views.insert",
+        return_value={"id": 27, "slug": "lekki-land"},
+    )
+    @patch("rentals.api_views.rows", return_value=[])
+    def test_staff_video_flow_saves_new_listing_as_draft_first(
+        self,
+        rows,
+        insert_record,
+    ):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+
+        response = self.client.post(
+            reverse("staff_listing_create"),
+            {
+                "title": "Lekki land",
+                "description": "Verified residential land.",
+                "city": "Lagos",
+                "state": "Lagos",
+                "property_type": "Residential land",
+                "category": "land",
+                "transaction_type": "sale",
+                "sale_price": "9000000",
+                "bedrooms": "0",
+                "bathrooms": "0",
+                "landlord_whatsapp": "+2348099999999",
+                "status": "published",
+                "action": "save",
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.json()["listing_id"], 27)
+        self.assertEqual(
+            response.json()["edit_url"],
+            reverse("staff_listing_edit", args=(27,)),
+        )
+        self.assertEqual(
+            response.json()["upload_url"],
+            reverse("staff_listing_video_upload", args=(27,)),
+        )
+        self.assertEqual(insert_record.call_args.args[1]["status"], "draft")
+
+    def test_staff_listing_form_displays_video_upload_progress(self):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+
+        response = self.client.get(reverse("staff_listing_create"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-rental-video-upload')
+        self.assertContains(response, "<progress", html=False)
+        self.assertContains(response, "Uploading video...")
+        self.assertContains(response, "Property video")
+
+    @patch(
+        "rentals.api_views.row_by_id",
+        return_value={"id": 27, "title": "Lekki land"},
+    )
+    @patch("rentals.api_views.admin_client")
+    def test_staff_can_prepare_signed_listing_video_upload(
+        self,
+        get_admin,
+        get_listing,
+    ):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+        storage = MagicMock()
+        storage.create_signed_upload_url.return_value = {"token": "short-lived-token"}
+        get_admin.return_value.storage.from_.return_value = storage
+
+        with self.settings(SUPABASE_URL="https://rental-project.supabase.co"):
+            response = self.client.post(
+                reverse("staff_listing_video_upload", args=(27,)),
+                data=json.dumps(
+                    {
+                        "filename": "property-tour.mp4",
+                        "content_type": "video/mp4",
+                        "size": 1_000_000,
+                    }
+                ),
+                content_type="application/json",
+            )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertRegex(response.json()["path"], r"^27/[a-f0-9]{32}\.mp4$")
+        self.assertEqual(
+            response.json()["resumable_endpoint"],
+            "https://rental-project.storage.supabase.co/storage/v1/upload/resumable/sign",
+        )
+        self.assertEqual(response.json()["token"], "short-lived-token")
+        storage.create_signed_upload_url.assert_called_once_with(
+            response.json()["path"]
+        )
+
+    @patch(
+        "rentals.api_views.row_by_id",
+        return_value={
+            "id": 27,
+            "title": "Lekki land",
+            "description": "Verified land.",
+            "city": "Lagos",
+            "state": "Lagos",
+            "property_type": "Residential land",
+            "category": "land",
+            "transaction_type": "sale",
+            "sale_price": 9_000_000,
+            "annual_rent": None,
+            "bedrooms": 0,
+            "bathrooms": 0,
+            "landlord_whatsapp": "+2348099999999",
+            "status": "draft",
+            "owner_auth_id": None,
+        },
+    )
+    @patch("rentals.api_views.admin_client")
+    @patch("rentals.api_views.update", return_value={"id": 27})
+    def test_staff_saves_sale_listing_video_before_publishing(
+        self,
+        update_listing,
+        get_admin,
+        get_listing,
+    ):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+        storage = MagicMock()
+        storage.info.return_value = {
+            "metadata": {"size": "1000000", "mimetype": "video/mp4"}
+        }
+        storage.get_public_url.return_value = (
+            "https://storage.example/27/property.mp4"
+        )
+        get_admin.return_value.storage.from_.return_value = storage
+
+        response = self.client.post(
+            reverse("staff_listing_edit", args=(27,)),
+            {
+                "title": "Lekki land",
+                "description": "Verified land.",
+                "city": "Lagos",
+                "state": "Lagos",
+                "property_type": "Residential land",
+                "category": "land",
+                "transaction_type": "sale",
+                "sale_price": "9000000",
+                "bedrooms": "0",
+                "bathrooms": "0",
+                "landlord_whatsapp": "+2348099999999",
+                "status": "published",
+                "action": "save",
+                "video_path": f"27/{'a' * 32}.mp4",
+                "video_duration": "120",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response["Location"], reverse("staff_records"))
+        values = update_listing.call_args.args[2]
+        self.assertEqual(values["status"], "published")
+        self.assertEqual(
+            values["video_url"],
+            "https://storage.example/27/property.mp4",
+        )
+        storage.info.assert_called_once_with(f"27/{'a' * 32}.mp4")
+
+    @patch(
+        "rentals.api_views.row_by_id",
+        return_value={
+            "id": 27,
+            "title": "Lekki land",
+            "description": "Verified land.",
+            "city": "Lagos",
+            "state": "Lagos",
+            "property_type": "Residential land",
+            "category": "land",
+            "transaction_type": "sale",
+            "sale_price": 9_000_000,
+            "annual_rent": None,
+            "bedrooms": 0,
+            "bathrooms": 0,
+            "landlord_whatsapp": "+2348099999999",
+            "status": "draft",
+            "owner_auth_id": None,
+        },
+    )
+    @patch("rentals.api_views.update")
+    def test_invalid_video_path_does_not_publish_sale_listing(
+        self,
+        update_listing,
+        get_listing,
+    ):
+        self.client.post(
+            reverse("accounts:login"),
+            {
+                "username": "rooms-staff",
+                "password": "test-only-password-123",
+            },
+        )
+
+        response = self.client.post(
+            reverse("staff_listing_edit", args=(27,)),
+            {
+                "title": "Lekki land",
+                "description": "Verified land.",
+                "city": "Lagos",
+                "state": "Lagos",
+                "property_type": "Residential land",
+                "category": "land",
+                "transaction_type": "sale",
+                "sale_price": "9000000",
+                "bedrooms": "0",
+                "bathrooms": "0",
+                "landlord_whatsapp": "+2348099999999",
+                "status": "published",
+                "action": "save",
+                "video_path": "another-listing/untrusted.mp4",
+                "video_duration": "120",
+            },
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "uploaded video must be no longer than 3 minutes")
+        update_listing.assert_not_called()
 
     def test_staff_can_upload_listing_photos(self):
         self.client.post(
