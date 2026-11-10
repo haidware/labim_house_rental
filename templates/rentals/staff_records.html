@@ -35,7 +35,7 @@
       {% for message in messages %}<p class="message">{{ message }}</p>{% endfor %}
 
       <section>
-        <h2>Home verification requests</h2>
+        <h2>Property listing requests</h2>
         {% if property_requests %}
           <table>
             <thead><tr><th>Owner</th><th>Contact</th><th>Property</th><th>Terms</th><th>Status and notes</th></tr></thead>
@@ -57,7 +57,7 @@
               {% endfor %}
             </tbody>
           </table>
-        {% else %}<p>No home verification requests.</p>{% endif %}
+        {% else %}<p>No property listing requests.</p>{% endif %}
       </section>
 
       <section>

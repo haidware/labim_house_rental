@@ -181,6 +181,9 @@ class PropertyListingRequest(models.Model):
         DUPLEX = "duplex", "Duplex"
         BUNGALOW = "bungalow", "Bungalow"
         ROOM = "room", "Room / self-contained"
+        LAND = "land", "Land / plot"
+        RESIDENTIAL_LAND = "residential_land", "Residential land"
+        COMMERCIAL_LAND = "commercial_land", "Commercial land"
         OTHER = "other", "Other"
 
     class Status(models.TextChoices):
@@ -208,8 +211,8 @@ class PropertyListingRequest(models.Model):
 
     class Meta:
         ordering = ("-created_at",)
-        verbose_name = "home rental request"
-        verbose_name_plural = "home rental requests"
+        verbose_name = "property listing request"
+        verbose_name_plural = "property listing requests"
         db_table = "rental_property_listing_requests"
 
     def __str__(self):

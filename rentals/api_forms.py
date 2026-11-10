@@ -72,6 +72,9 @@ class PropertyListingRequestForm(forms.Form):
         ("duplex", "Duplex"),
         ("bungalow", "Bungalow"),
         ("room", "Room / self-contained"),
+        ("land", "Land / plot"),
+        ("residential_land", "Residential land"),
+        ("commercial_land", "Commercial land"),
         ("other", "Other"),
     )
 
@@ -79,7 +82,7 @@ class PropertyListingRequestForm(forms.Form):
     phone = forms.CharField(max_length=40, label="Phone number")
     property_type = forms.ChoiceField(
         choices=PROPERTY_TYPES,
-        label="Type of property for rent",
+        label="Type of property to list",
     )
     address = forms.CharField(
         max_length=500,
@@ -91,7 +94,7 @@ class PropertyListingRequestForm(forms.Form):
     terms_accepted = forms.BooleanField(
         label=(
             "I confirm that I own or am authorized to represent this property, "
-            "that it is available for rent, and I agree Rooms may contact me "
+            "and I agree Rooms may contact me "
             "and visit the address to verify it. I understand this request "
             "does not guarantee a listing or publication."
         )

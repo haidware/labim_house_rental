@@ -164,6 +164,16 @@ class InspectionRequestSubmission {
   final String whatsappNumber;
 }
 
+class PropertyRequestSubmission {
+  const PropertyRequestSubmission({
+    required this.message,
+    required this.whatsappUrl,
+  });
+
+  final String message;
+  final Uri whatsappUrl;
+}
+
 class RentalApi {
   RentalApi({
     http.Client? client,
@@ -270,7 +280,7 @@ class RentalApi {
     return _decode(response);
   }
 
-  Future<String> requestProperty({
+  Future<PropertyRequestSubmission> requestProperty({
     required String ownerName,
     required String phone,
     required String propertyType,
@@ -283,7 +293,20 @@ class RentalApi {
       'address': address,
       'terms_accepted': true,
     });
-    return result['message']?.toString() ?? 'Your request was received.';
+    final whatsappUrl = Uri.tryParse(result['whatsapp_url']?.toString() ?? '');
+    if (whatsappUrl == null ||
+        whatsappUrl.scheme != 'https' ||
+        whatsappUrl.host != 'wa.me') {
+      throw const RentalApiException(
+        'The request was saved, but the admin WhatsApp link is unavailable.',
+      );
+    }
+    return PropertyRequestSubmission(
+      message:
+          result['message']?.toString() ??
+          'Your request was saved. Review and send it in WhatsApp.',
+      whatsappUrl: whatsappUrl,
+    );
   }
 
   Future<InspectionRequestSubmission> requestInspection({
@@ -311,8 +334,7 @@ class RentalApi {
       );
     }
     return InspectionRequestSubmission(
-      message: result['message']?.toString() ??
-          'Your viewing request was saved.',
+      message: result['message']?.toString() ?? 'Your viewing request was saved.',
       whatsappNumber: whatsappNumber,
     );
   }
@@ -431,7 +453,10 @@ class _RentalHomePageState extends State<RentalHomePage> {
   Future<void> _showPropertyRequest() async {
     final message = await showDialog<String>(
       context: context,
-      builder: (_) => _PropertyRequestDialog(api: _api),
+      builder: (_) => _PropertyRequestDialog(
+        api: _api,
+        landProperties: widget.landProperties,
+      ),
     );
     if (message != null && mounted) _showMessage(message);
   }
@@ -680,10 +705,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
                   : 'Choose from homes available for rent, reviewed by Rooms.',
               style: const TextStyle(color: _muted, fontSize: 17, height: 1.5),
             ),
-            if (!widget.landProperties) ...[
-              const SizedBox(height: 18),
-              _buildHomeListingBanner(),
-            ],
+            const SizedBox(height: 18),
+            _buildListingBanner(),
             const SizedBox(height: 24),
             Container(
               padding: const EdgeInsets.all(18),
@@ -800,7 +823,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
     ),
   );
 
-  Widget _buildHomeListingBanner() => Container(
+  Widget _buildListingBanner() => Container(
     padding: const EdgeInsets.all(18),
     decoration: BoxDecoration(
       color: _navy,
@@ -812,8 +835,10 @@ class _RentalHomePageState extends State<RentalHomePage> {
         final copy = Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            const Text(
-              'Own a home for rent?',
+            Text(
+              widget.landProperties
+                  ? 'Own land or property?'
+                  : 'Own a home for rent?',
               style: TextStyle(
                 color: Colors.white,
                 fontSize: 17,
@@ -821,8 +846,10 @@ class _RentalHomePageState extends State<RentalHomePage> {
               ),
             ),
             const SizedBox(height: 4),
-            const Text(
-              'Apply to list your home with Rooms.',
+            Text(
+              widget.landProperties
+                  ? 'Apply to list your land or property with Rooms.'
+                  : 'Apply to list your home with Rooms.',
               style: TextStyle(color: Color(0xFFD7E4E6), fontSize: 13),
             ),
           ],
@@ -833,7 +860,11 @@ class _RentalHomePageState extends State<RentalHomePage> {
             backgroundColor: _gold,
             foregroundColor: _navy,
           ),
-          child: const Text('List a home for rent'),
+          child: Text(
+            widget.landProperties
+                ? 'List land/property'
+                : 'List a home for rent',
+          ),
         );
         return compact
             ? Column(
@@ -1021,17 +1052,17 @@ class _RentalHomePageState extends State<RentalHomePage> {
                   children: [
                     _StepText(
                       widget.landProperties
-                          ? 'Property owners request a land/property account.'
+                          ? 'Owners share land/property details and contact information.'
                           : 'Owners share the address, property type and contact number.',
                     ),
                     _StepText(
                       widget.landProperties
-                          ? 'Haidware staff review owner and property details.'
+                          ? 'Rooms contacts owners to verify the property.'
                           : 'Rooms contacts the owner and visits to verify the home.',
                     ),
                     _StepText(
                       widget.landProperties
-                          ? 'Approved owners submit land or property listings.'
+                          ? 'Verified land/property details are reviewed for listing.'
                           : 'Rooms handles property photos and prepares listing details.',
                     ),
                     _StepText(
@@ -1047,16 +1078,14 @@ class _RentalHomePageState extends State<RentalHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Land and property listings use the same Rooms review portal. Request an owner account, then submit listings for Haidware staff review.',
+                        'Send your land or property details to the Rooms admin for review and verification.',
                         style: TextStyle(color: _muted, height: 1.5),
                       ),
                       const SizedBox(height: 14),
                       FilledButton(
-                        onPressed: () => _openInternal(
-                          '/accounts/request-owner-account/?owner_type=land',
-                        ),
+                        onPressed: _showPropertyRequest,
                         style: FilledButton.styleFrom(backgroundColor: _teal),
-                        child: const Text('Request land/property account'),
+                        child: const Text('List land/property'),
                       ),
                       TextButton(
                         onPressed: () => _openInternal('/'),
@@ -1600,9 +1629,13 @@ class _StepText extends StatelessWidget {
 }
 
 class _PropertyRequestDialog extends StatefulWidget {
-  const _PropertyRequestDialog({required this.api});
+  const _PropertyRequestDialog({
+    required this.api,
+    required this.landProperties,
+  });
 
   final RentalApi api;
+  final bool landProperties;
 
   @override
   State<_PropertyRequestDialog> createState() => _PropertyRequestDialogState();
@@ -1616,7 +1649,16 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
   String _propertyType = 'house';
   bool _termsAccepted = false;
   bool _submitting = false;
+  bool _requestSaved = false;
+  Uri? _savedWhatsAppUrl;
+  String? _savedMessage;
   String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.landProperties) _propertyType = 'land';
+  }
 
   @override
   void dispose() {
@@ -1633,19 +1675,34 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
       _error = null;
     });
     try {
-      final message = await widget.api.requestProperty(
-        ownerName: _name.text.trim(),
-        phone: _phone.text.trim(),
-        propertyType: _propertyType,
-        address: _address.text.trim(),
-      );
-      if (mounted) Navigator.pop(context, message);
+      if (!_requestSaved) {
+        final result = await widget.api.requestProperty(
+          ownerName: _name.text.trim(),
+          phone: _phone.text.trim(),
+          propertyType: _propertyType,
+          address: _address.text.trim(),
+        );
+        _requestSaved = true;
+        _savedWhatsAppUrl = result.whatsappUrl;
+        _savedMessage = result.message;
+      }
+      final opened = await widget.api.launchWhatsApp(_savedWhatsAppUrl!);
+      if (opened && mounted) {
+        Navigator.pop(context, _savedMessage);
+      } else if (mounted) {
+        setState(
+          () => _error =
+              'Your request was saved, but WhatsApp could not be opened. Tap Open WhatsApp to try again.',
+        );
+      }
     } on RentalApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
       if (mounted) {
         setState(
-          () => _error = 'Could not send your request. Please try again.',
+          () => _error = _requestSaved
+              ? 'Your request was saved, but WhatsApp could not be opened. Tap Open WhatsApp to try again.'
+              : 'Could not save your request. Please try again.',
         );
       }
     } finally {
@@ -1655,7 +1712,9 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
 
   @override
   Widget build(BuildContext context) => AlertDialog(
-    title: const Text('List a home for rent'),
+    title: Text(
+      widget.landProperties ? 'List land or property' : 'List a home for rent',
+    ),
     content: SizedBox(
       width: 520,
       child: Form(
@@ -1665,7 +1724,7 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Share the property details. Rooms will contact you to arrange an in-person verification visit.',
+                'Share the details and we will save your request, then open a prepared WhatsApp message to the Rooms admin. You must tap Send in WhatsApp.',
                 style: TextStyle(color: _muted),
               ),
               const SizedBox(height: 16),
@@ -1683,24 +1742,50 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
               ),
               const SizedBox(height: 12),
               DropdownButtonFormField<String>(
+                isExpanded: true,
                 initialValue: _propertyType,
                 decoration: const InputDecoration(
-                  labelText: 'Type of property for rent',
+                  labelText: 'Type of property to list',
                 ),
-                items: const [
-                  DropdownMenuItem(value: 'house', child: Text('House')),
-                  DropdownMenuItem(
-                    value: 'apartment',
-                    child: Text('Apartment / flat'),
-                  ),
-                  DropdownMenuItem(value: 'duplex', child: Text('Duplex')),
-                  DropdownMenuItem(value: 'bungalow', child: Text('Bungalow')),
-                  DropdownMenuItem(
-                    value: 'room',
-                    child: Text('Room / self-contained'),
-                  ),
-                  DropdownMenuItem(value: 'other', child: Text('Other')),
-                ],
+                items: widget.landProperties
+                    ? const [
+                        DropdownMenuItem(
+                          value: 'land',
+                          child: Text('Land / plot'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'residential_land',
+                          child: Text('Residential land'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'commercial_land',
+                          child: Text('Commercial land'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'other',
+                          child: Text('Other property'),
+                        ),
+                      ]
+                    : const [
+                        DropdownMenuItem(value: 'house', child: Text('House')),
+                        DropdownMenuItem(
+                          value: 'apartment',
+                          child: Text('Apartment / flat'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'duplex',
+                          child: Text('Duplex'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'bungalow',
+                          child: Text('Bungalow'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'room',
+                          child: Text('Room / self-contained'),
+                        ),
+                        DropdownMenuItem(value: 'other', child: Text('Other')),
+                      ],
                 onChanged: (value) =>
                     setState(() => _propertyType = value ?? 'house'),
               ),
@@ -1710,8 +1795,8 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
                 minLines: 2,
                 maxLines: 4,
                 decoration: const InputDecoration(
-                  labelText: 'Full property address',
-                  hintText: 'Street, area, city and state',
+                  labelText: 'Property address or location',
+                  hintText: 'Street/plot, area, city and state',
                 ),
                 validator: _required,
               ),
@@ -1720,8 +1805,10 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
                 value: _termsAccepted,
                 onChanged: (value) =>
                     setState(() => _termsAccepted = value ?? false),
-                title: const Text(
-                  'I own or am authorized to represent this property, it is available for rent, and I agree Rooms may contact me and visit to verify it. I understand this does not guarantee publication.',
+                title: Text(
+                  widget.landProperties
+                      ? 'I own or am authorized to represent this land/property, and I agree Rooms may contact me and visit to verify it. I understand this does not guarantee publication.'
+                      : 'I own or am authorized to represent this property, it is available for rent, and I agree Rooms may contact me and visit to verify it. I understand this does not guarantee publication.',
                   style: TextStyle(fontSize: 12),
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
@@ -1756,13 +1843,23 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
         onPressed: _submitting
             ? null
             : () {
+                if (_requestSaved) {
+                  _submit();
+                  return;
+                }
                 if (!_termsAccepted) {
                   setState(() => _error = 'Accept the verification terms.');
                   return;
                 }
                 _submit();
               },
-        child: Text(_submitting ? 'Sending…' : 'Send request'),
+        child: Text(
+          _submitting
+              ? 'Opening WhatsApp…'
+              : _requestSaved
+              ? 'Open WhatsApp'
+              : 'Send request',
+        ),
       ),
     ],
   );

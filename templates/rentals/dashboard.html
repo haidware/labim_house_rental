@@ -32,7 +32,7 @@
         <div class="card">Published<span class="number">{{ published_count }}</span></div>
         <div class="card">Awaiting listing review<span class="number">{{ pending_listing_count }}</span></div>
         <div class="card">Owner requests<span class="number">{{ pending_owner_count }}</span></div>
-        <div class="card">New home requests<span class="number">{{ new_property_request_count }}</span></div>
+        <div class="card">New property requests<span class="number">{{ new_property_request_count }}</span></div>
         <div class="card">New inspections<span class="number">{{ new_inspection_count }}</span></div>
       </div>
       <section>
@@ -58,7 +58,7 @@
           {% if api_backend %}
             <a href="{% url 'staff_records' %}">Manage property requests, owners and listings</a>
           {% else %}
-            <a href="{% url 'admin:rentals_propertylistingrequest_changelist' %}">Follow up home requests</a>
+            <a href="{% url 'admin:rentals_propertylistingrequest_changelist' %}">Follow up property requests</a>
             &middot;
             <a href="{% url 'admin:rentals_ownerprofile_changelist' %}">Review owner account requests</a>
             &middot;

@@ -7,7 +7,7 @@ import re
 import secrets
 from functools import wraps
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urlencode, urlsplit
 from uuid import uuid4
 
 from django.conf import settings
@@ -348,16 +348,43 @@ def public_api_property_request(request):
         "status": "new",
         "staff_notes": "",
     })
+    whatsapp_number = "".join(
+        character
+        for character in settings.RENTAL_ADMIN_WHATSAPP
+        if character.isdigit()
+    )
+    if not 8 <= len(whatsapp_number) <= 15:
+        logger.error("RENTAL_ADMIN_WHATSAPP is not configured with a valid number.")
+        return JsonResponse(
+            {"error": "WhatsApp contact is temporarily unavailable. Please try again."},
+            status=503,
+        )
     try:
         insert("rental_property_listing_requests", values)
     except APIError:
-        logger.exception("Could not save home rental request.")
+        logger.exception("Could not save property listing request.")
         return JsonResponse(
             {"error": "Your request could not be sent right now. Please try again."},
             status=503,
         )
+    message = "\n".join((
+        "Property listing request",
+        f"Owner: {values['owner_name']}",
+        f"Phone: {values['phone']}",
+        f"Property type: {dict(form.fields['property_type'].choices)[values['property_type']]}",
+        f"Address: {values['address']}",
+    ))
+    whatsapp_url = (
+        f"https://wa.me/{whatsapp_number}?{urlencode({'text': message})}"
+    )
     return JsonResponse(
-        {"message": "Your request was received. Rooms will contact you to arrange verification."},
+        {
+            "message": (
+                "Your request was saved. Review and send it to the Rooms admin "
+                "in WhatsApp."
+            ),
+            "whatsapp_url": whatsapp_url,
+        },
         status=201,
     )
 

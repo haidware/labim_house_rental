@@ -99,9 +99,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(
-          home: RentalHomePage(api: RentalApi(client: _mockClient())),
-        ),
+        MaterialApp(home: RentalHomePage(api: RentalApi(client: _mockClient()))),
       );
       await tester.pumpAndSettle();
 
@@ -154,7 +152,9 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     await tester.pumpWidget(
-      MaterialApp(home: RentalHomePage(api: RentalApi(client: _mockClient()))),
+      MaterialApp(
+        home: RentalHomePage(api: RentalApi(client: _mockClient())),
+      ),
     );
     await tester.pumpAndSettle();
     await tester.scrollUntilVisible(
@@ -213,6 +213,15 @@ void main() {
       'all',
     );
     expect(find.text('Find land and properties'), findsOneWidget);
+    expect(find.text('Own land or property?'), findsOneWidget);
+    expect(
+      find.text('Apply to list your land or property with Rooms.'),
+      findsOneWidget,
+    );
+    final listPropertyButton = find.text('List land/property');
+    expect(listPropertyButton, findsOneWidget);
+    expect(tester.getTopLeft(listPropertyButton).dy, lessThan(844));
+    expect(find.text('Request land/property account'), findsNothing);
     await tester.scrollUntilVisible(
       find.text('Lekki plot'),
       500,
@@ -223,6 +232,84 @@ void main() {
     expect(find.text('Request Inspection'), findsOneWidget);
     expect(find.byTooltip('Play property video'), findsOneWidget);
     expect(find.text('1/2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('land owner request opens a prepared admin WhatsApp message', (
+    tester,
+  ) async {
+    final requests = <http.Request>[];
+    final whatsappUris = <Uri>[];
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RentalHomePage(
+          landProperties: true,
+          api: RentalApi(
+            client: MockClient((request) async {
+              requests.add(request);
+              if (request.url.path == '/api/public/listings/') {
+                return _landListingResponse();
+              }
+              if (request.url.path == '/api/public/property-requests/') {
+                return http.Response(
+                  jsonEncode({
+                    'message': 'Your request was saved.',
+                    'whatsapp_url':
+                        'https://wa.me/2348127499576?text=Property+listing+request',
+                  }),
+                  201,
+                  headers: {'content-type': 'application/json'},
+                );
+              }
+              return http.Response('{}', 404);
+            }),
+            whatsappLauncher: (uri) async {
+              whatsappUris.add(uri);
+              return true;
+            },
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('List land/property'));
+    await tester.pumpAndSettle();
+    expect(find.text('List land or property'), findsOneWidget);
+    expect(
+      find.textContaining('open a prepared WhatsApp message'),
+      findsOneWidget,
+    );
+
+    await tester.enterText(find.byType(TextFormField).at(0), 'Land Owner');
+    await tester.enterText(find.byType(TextFormField).at(1), '+2348012345678');
+    await tester.enterText(
+      find.byType(TextFormField).at(2),
+      'Plot 12, Lekki, Lagos',
+    );
+    await tester.drag(
+      find.byType(SingleChildScrollView).last,
+      const Offset(0, -250),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.byType(CheckboxListTile));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Send request'));
+    await tester.pumpAndSettle();
+
+    final request = requests.last;
+    expect(request.url.path, '/api/public/property-requests/');
+    expect(jsonDecode(request.body)['property_type'], 'land');
+    expect(jsonDecode(request.body)['terms_accepted'], isTrue);
+    expect(whatsappUris, hasLength(1));
+    expect(whatsappUris.single.host, 'wa.me');
+    expect(whatsappUris.single.path, '/2348127499576');
+    expect(find.text('Your request was saved.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

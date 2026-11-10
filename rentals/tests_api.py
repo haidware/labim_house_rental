@@ -4,6 +4,7 @@ import tempfile
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import MagicMock, call, patch
+from urllib.parse import parse_qs, urlsplit
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -286,6 +287,7 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertEqual(response.status_code, 201)
         insert_record.assert_called_once()
 
+    @override_settings(RENTAL_ADMIN_WHATSAPP="+2348127499576")
     @patch("rentals.api_views.insert")
     def test_flutter_property_request_is_validated_and_saved(self, insert_record):
         response = self.client.post(
@@ -301,10 +303,52 @@ class SupabaseApiWorkflowTests(TestCase):
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertIn("Rooms will contact you", response.json()["message"])
+        self.assertIn("WhatsApp", response.json()["message"])
+        self.assertEqual(
+            response.json()["whatsapp_url"].split("?", 1)[0],
+            "https://wa.me/2348127499576",
+        )
+        self.assertEqual(
+            parse_qs(urlsplit(response.json()["whatsapp_url"]).query)["text"],
+            ["Property listing request\nOwner: Owner Example\nPhone: "
+             "+2348012345678\nProperty type: House\nAddress: 12 Test Street, Lagos"],
+        )
         table, values = insert_record.call_args.args
         self.assertEqual(table, "rental_property_listing_requests")
         self.assertEqual(values["owner_name"], "Owner Example")
+        self.assertTrue(values["terms_accepted"])
+
+    @override_settings(RENTAL_ADMIN_WHATSAPP="+2348127499576")
+    @patch("rentals.api_views.insert")
+    def test_flutter_land_request_is_saved_and_prepares_admin_whatsapp(
+        self,
+        insert_record,
+    ):
+        response = self.client.post(
+            reverse("public_api_property_request"),
+            data={
+                "owner_name": "Land Owner",
+                "phone": "+2348012345678",
+                "property_type": "residential_land",
+                "address": "Plot 12, Lekki, Lagos",
+                "terms_accepted": True,
+            },
+            content_type="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(
+            response.json()["whatsapp_url"].split("?", 1)[0],
+            "https://wa.me/2348127499576",
+        )
+        message = parse_qs(
+            urlsplit(response.json()["whatsapp_url"]).query
+        )["text"][0]
+        self.assertIn("Residential land", message)
+        self.assertIn("Land Owner", message)
+        self.assertIn("Plot 12, Lekki, Lagos", message)
+        _, values = insert_record.call_args.args
+        self.assertEqual(values["property_type"], "residential_land")
         self.assertTrue(values["terms_accepted"])
 
     @patch("rentals.api_views.insert")
