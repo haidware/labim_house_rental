@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,70 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
 import 'package:rooms_rental_web/main.dart';
+import 'package:video_player_platform_interface/video_player_platform_interface.dart';
+
+class _TestVideoPlayerPlatform extends VideoPlayerPlatform {
+  final Map<int, StreamController<VideoEvent>> _streams = {};
+  int _nextPlayerId = 0;
+
+  @override
+  Future<void> init() async {}
+
+  @override
+  Future<int?> createWithOptions(VideoCreationOptions options) async {
+    final playerId = _nextPlayerId++;
+    final events = StreamController<VideoEvent>();
+    _streams[playerId] = events;
+    events.add(
+      VideoEvent(
+        eventType: VideoEventType.initialized,
+        duration: const Duration(seconds: 30),
+        size: const Size(1920, 1080),
+      ),
+    );
+    return playerId;
+  }
+
+  @override
+  Stream<VideoEvent> videoEventsFor(int playerId) => _streams[playerId]!.stream;
+
+  @override
+  Future<void> setLooping(int playerId, bool looping) async {}
+
+  @override
+  Future<void> setVolume(int playerId, double volume) async {}
+
+  @override
+  Future<void> setPlaybackSpeed(int playerId, double speed) async {}
+
+  @override
+  Future<void> play(int playerId) async {}
+
+  @override
+  Future<void> pause(int playerId) async {}
+
+  @override
+  Future<Duration> getPosition(int playerId) async => Duration.zero;
+
+  @override
+  Future<void> seekTo(int playerId, Duration position) async {}
+
+  @override
+  Widget buildView(int playerId) => const SizedBox.shrink();
+
+  @override
+  Future<void> dispose(int playerId) async {
+    final events = _streams.remove(playerId);
+    if (events != null) await events.close();
+  }
+
+  Future<void> disposeStreams() async {
+    for (final stream in _streams.values) {
+      await stream.close();
+    }
+    _streams.clear();
+  }
+}
 
 void main() {
   test(
@@ -63,13 +128,60 @@ void main() {
         500,
         scrollable: find.byType(Scrollable).first,
       );
+      await tester.ensureVisible(find.byType(PageView).first);
       await tester.pumpAndSettle();
       expect(find.text('Verified family home'), findsOneWidget);
       expect(find.text('₦100,000 / approx. month'), findsOneWidget);
-      expect(find.text('Watch property video'), findsOneWidget);
+      expect(find.byTooltip('Play property video'), findsOneWidget);
+      expect(find.text('1/3'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
   );
+
+  testWidgets('rental gallery places video before photos and plays inline', (
+    tester,
+  ) async {
+    final previousPlatform = VideoPlayerPlatform.instance;
+    final platform = _TestVideoPlayerPlatform();
+    VideoPlayerPlatform.instance = platform;
+    addTearDown(() async {
+      VideoPlayerPlatform.instance = previousPlatform;
+      await platform.disposeStreams();
+    });
+    tester.view.physicalSize = const Size(390, 844);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(home: RentalHomePage(api: RentalApi(client: _mockClient()))),
+    );
+    await tester.pumpAndSettle();
+    await tester.scrollUntilVisible(
+      find.text('Verified family home'),
+      500,
+      scrollable: find.byType(Scrollable).first,
+    );
+    await tester.ensureVisible(find.byType(PageView).first);
+    await tester.pumpAndSettle();
+
+    expect(find.text('1/3'), findsOneWidget);
+    await tester.drag(find.byType(PageView).first, const Offset(-250, 0));
+    await tester.pumpAndSettle();
+    expect(find.text('2/3'), findsOneWidget);
+    await tester.drag(find.byType(PageView).first, const Offset(250, 0));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byTooltip('Play property video'));
+    await tester.pumpAndSettle();
+    expect(find.byTooltip('Expand video'), findsOneWidget);
+    await tester.tap(find.byTooltip('Expand video'));
+    await tester.pumpAndSettle();
+    expect(find.text('Verified family home'), findsWidgets);
+    expect(find.byTooltip('Close full-screen video'), findsOneWidget);
+    await tester.tap(find.byTooltip('Close full-screen video'));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+  });
 
   testWidgets('land tab shows published property sale listings', (
     tester,
@@ -109,6 +221,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('₦9,000,000 asking price'), findsOneWidget);
     expect(find.text('Request Inspection'), findsOneWidget);
+    expect(find.byTooltip('Play property video'), findsOneWidget);
+    expect(find.text('1/2'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -237,7 +351,10 @@ http.Response _listingResponse() => http.Response(
         'annual_rent': 1200000,
         'monthly_rent': 100000,
         'video_url': 'https://storage.example/house.mp4',
-        'photos': [],
+        'photos': [
+          {'image': 'https://storage.example/house-front.jpg'},
+          {'image': 'https://storage.example/house-kitchen.jpg'},
+        ],
       },
     ],
   }),
@@ -266,7 +383,10 @@ http.Response _landListingResponse() => http.Response(
         'bathrooms': 0,
         'annual_rent': 0,
         'sale_price': 9000000,
-        'photos': [],
+        'video_url': 'https://storage.example/land.mp4',
+        'photos': [
+          {'image': 'https://storage.example/land-boundary.jpg'},
+        ],
       },
     ],
   }),

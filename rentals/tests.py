@@ -8,6 +8,7 @@ from django.utils import timezone
 
 from .models import (
     InspectionRequest,
+    ListingPhoto,
     OwnerProfile,
     PropertyListingRequest,
     RentalListing,
@@ -107,6 +108,38 @@ class RentalAdminTests(TestCase):
         self.assertNotContains(response, "Pending home")
         self.assertNotContains(response, "Published land listing")
         self.assertNotContains(response, "Published house for sale")
+
+    def test_home_page_lists_video_before_all_property_photos(self):
+        self.listing.video_url = "https://storage.example/home-tour.mp4"
+        self.listing.save(update_fields=["video_url"])
+        ListingPhoto.objects.create(
+            listing=self.listing,
+            image="rental-listings/home-front.jpg",
+            caption="Front of the home",
+            position=0,
+        )
+        ListingPhoto.objects.create(
+            listing=self.listing,
+            image="rental-listings/home-living-room.jpg",
+            caption="Living room",
+            position=1,
+        )
+
+        response = self.client.get(reverse("home"))
+        page = response.content.decode()
+
+        video_position = page.index(
+            '<video src="https://storage.example/home-tour.mp4"'
+        )
+        first_photo_position = page.index(
+            'src="/media/rental-listings/home-front.jpg"'
+        )
+        second_photo_position = page.index(
+            'src="/media/rental-listings/home-living-room.jpg"'
+        )
+        self.assertIn("controls playsinline preload=\"metadata\"", page)
+        self.assertLess(video_position, first_photo_position)
+        self.assertLess(first_photo_position, second_photo_position)
 
     def test_home_page_filters_by_location_city_and_monthly_budget(self):
         RentalListing.objects.create(

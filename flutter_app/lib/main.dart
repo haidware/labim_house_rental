@@ -1,9 +1,13 @@
+import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:video_player/video_player.dart';
+
+import 'services/video_fullscreen.dart';
 
 const _navy = Color(0xFF153D4C);
 const _teal = Color(0xFF17607A);
@@ -493,11 +497,6 @@ class _RentalHomePageState extends State<RentalHomePage> {
                         listing: _listings[index],
                         onRequestViewing: () =>
                             _showInspectionRequest(_listings[index]),
-                        onWatchVideo: _listings[index].videoUrl.isEmpty
-                            ? null
-                            : () => _openExternal(
-                                _listings[index].videoUrl,
-                              ),
                       ),
                       childCount: _listings.length,
                     ),
@@ -1194,12 +1193,10 @@ class _ListingCard extends StatelessWidget {
   const _ListingCard({
     required this.listing,
     required this.onRequestViewing,
-    required this.onWatchVideo,
   });
 
   final RentalListing listing;
   final VoidCallback onRequestViewing;
-  final VoidCallback? onWatchVideo;
 
   @override
   Widget build(BuildContext context) => Card(
@@ -1214,24 +1211,9 @@ class _ListingCard extends StatelessWidget {
     child: Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        SizedBox(
-          height: 185,
-          child: listing.photos.isEmpty
-              ? const ColoredBox(
-                  color: _pale,
-                  child: Icon(Icons.home_outlined, color: _teal, size: 52),
-                )
-              : PageView.builder(
-                  itemCount: listing.photos.length,
-                  itemBuilder: (context, index) => Image.network(
-                    listing.photos[index].image,
-                    fit: BoxFit.cover,
-                    errorBuilder: (_, _, _) => const ColoredBox(
-                      color: _pale,
-                      child: Icon(Icons.home_outlined, color: _teal, size: 52),
-                    ),
-                  ),
-                ),
+        _ListingMediaGallery(
+          key: ValueKey(listing.slug),
+          listing: listing,
         ),
         Expanded(
           child: Padding(
@@ -1285,12 +1267,6 @@ class _ListingCard extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              if (onWatchVideo != null)
-                OutlinedButton.icon(
-                  onPressed: onWatchVideo,
-                  icon: const Icon(Icons.play_circle_outline),
-                  label: const Text('Watch property video'),
-                ),
               OutlinedButton(
                 onPressed: onRequestViewing,
                 child: const Text('Request Inspection'),
@@ -1299,6 +1275,273 @@ class _ListingCard extends StatelessWidget {
           ),
         ),
       ],
+    ),
+  );
+}
+
+class _ListingMediaGallery extends StatefulWidget {
+  const _ListingMediaGallery({super.key, required this.listing});
+
+  final RentalListing listing;
+
+  @override
+  State<_ListingMediaGallery> createState() => _ListingMediaGalleryState();
+}
+
+class _ListingMediaGalleryState extends State<_ListingMediaGallery> {
+  VideoPlayerController? _videoController;
+  bool _videoFailed = false;
+  int _currentPage = 0;
+
+  bool get _hasVideo => widget.listing.videoUrl.isNotEmpty;
+  int get _itemCount => widget.listing.photos.length + (_hasVideo ? 1 : 0);
+
+  Future<void> _playVideo() async {
+    if (_videoFailed) return;
+    var controller = _videoController;
+    if (controller == null) {
+      controller = VideoPlayerController.networkUrl(
+        Uri.parse(widget.listing.videoUrl),
+      );
+      _videoController = controller;
+      try {
+        await controller.initialize();
+      } on Object catch (error, stackTrace) {
+        debugPrint('Could not load property video: $error\n$stackTrace');
+        if (mounted) setState(() => _videoFailed = true);
+        await controller.dispose();
+        return;
+      }
+    }
+    if (!mounted) return;
+    setState(() {});
+    await controller.play();
+  }
+
+  Future<void> _openFullscreen() async {
+    final controller = _videoController;
+    if (controller == null || !controller.value.isInitialized) return;
+    await Navigator.of(context).push<void>(
+      MaterialPageRoute<void>(
+        builder: (_) => _RentalFullscreenVideoPage(
+          controller: controller,
+          title: widget.listing.title,
+        ),
+      ),
+    );
+    if (mounted && controller.value.isInitialized) {
+      setState(() {});
+    }
+  }
+
+  @override
+  void dispose() {
+    unawaited(_videoController?.dispose());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => SizedBox(
+    height: 185,
+    child: Stack(
+      fit: StackFit.expand,
+      children: [
+        if (_itemCount == 0)
+          const ColoredBox(
+            color: _pale,
+            child: Icon(Icons.home_outlined, color: _teal, size: 52),
+          )
+        else
+          PageView.builder(
+            itemCount: _itemCount,
+            onPageChanged: (page) {
+              _currentPage = page;
+              if (_hasVideo && page != 0) {
+                unawaited(_videoController?.pause());
+              }
+              setState(() {});
+            },
+            itemBuilder: (context, page) {
+              if (_hasVideo && page == 0) return _buildVideo();
+              final photoIndex = page - (_hasVideo ? 1 : 0);
+              return Image.network(
+                widget.listing.photos[photoIndex].image,
+                fit: BoxFit.cover,
+                errorBuilder: (_, _, _) => const ColoredBox(
+                  color: _pale,
+                  child: Icon(Icons.home_outlined, color: _teal, size: 52),
+                ),
+              );
+            },
+          ),
+        if (_itemCount > 1)
+          Positioned(
+            right: 10,
+            bottom: 10,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: Colors.black54,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 9,
+                  vertical: 4,
+                ),
+                child: Text(
+                  '${_currentPage + 1}/$_itemCount',
+                  style: const TextStyle(
+                    color: Colors.white,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+              ),
+            ),
+          ),
+      ],
+    ),
+  );
+
+  Widget _buildVideo() {
+    final controller = _videoController;
+    if (_videoFailed) {
+      return const ColoredBox(
+        color: _pale,
+        child: Center(child: Text('Video unavailable')),
+      );
+    }
+    if (controller == null || !controller.value.isInitialized) {
+      return ColoredBox(
+        color: Colors.black,
+        child: Center(
+          child: IconButton.filled(
+            tooltip: 'Play property video',
+            onPressed: _playVideo,
+            icon: const Icon(Icons.play_arrow),
+            iconSize: 36,
+          ),
+        ),
+      );
+    }
+    return ColoredBox(
+      color: Colors.black,
+      child: Stack(
+        fit: StackFit.expand,
+        children: [
+          Center(
+            child: AspectRatio(
+              aspectRatio: controller.value.aspectRatio,
+              child: VideoPlayer(controller),
+            ),
+          ),
+          Positioned(
+            right: 8,
+            top: 8,
+            child: IconButton.filledTonal(
+              tooltip: 'Expand video',
+              onPressed: _openFullscreen,
+              icon: const Icon(Icons.fullscreen),
+            ),
+          ),
+          Positioned(
+            left: 8,
+            bottom: 8,
+            child: ValueListenableBuilder<VideoPlayerValue>(
+              valueListenable: controller,
+              builder: (context, value, _) => IconButton.filledTonal(
+                tooltip: value.isPlaying ? 'Pause video' : 'Play video',
+                onPressed: () => value.isPlaying
+                    ? controller.pause()
+                    : controller.play(),
+                icon: Icon(value.isPlaying ? Icons.pause : Icons.play_arrow),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _RentalFullscreenVideoPage extends StatefulWidget {
+  const _RentalFullscreenVideoPage({
+    required this.controller,
+    required this.title,
+  });
+
+  final VideoPlayerController controller;
+  final String title;
+
+  @override
+  State<_RentalFullscreenVideoPage> createState() =>
+      _RentalFullscreenVideoPageState();
+}
+
+class _RentalFullscreenVideoPageState
+    extends State<_RentalFullscreenVideoPage> {
+  @override
+  void initState() {
+    super.initState();
+    unawaited(enterVideoFullscreen());
+  }
+
+  @override
+  void dispose() {
+    unawaited(exitVideoFullscreen());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) => Scaffold(
+    backgroundColor: Colors.black,
+    body: SafeArea(
+      child: Stack(
+        children: [
+          Center(
+            child: AspectRatio(
+              aspectRatio: widget.controller.value.aspectRatio,
+              child: VideoPlayer(widget.controller),
+            ),
+          ),
+          Positioned(
+            left: 8,
+            top: 8,
+            child: IconButton(
+              tooltip: 'Close full-screen video',
+              color: Colors.white,
+              onPressed: () => Navigator.of(context).pop(),
+              icon: const Icon(Icons.close),
+            ),
+          ),
+          Positioned(
+            left: 56,
+            top: 19,
+            right: 56,
+            child: Text(
+              widget.title,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(color: Colors.white),
+            ),
+          ),
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.all(16),
+              child: VideoProgressIndicator(
+                widget.controller,
+                allowScrubbing: true,
+                colors: const VideoProgressColors(
+                  playedColor: _gold,
+                  bufferedColor: Colors.white38,
+                  backgroundColor: Colors.white24,
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
     ),
   );
 }
