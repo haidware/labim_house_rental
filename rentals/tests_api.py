@@ -3,7 +3,7 @@ import json
 import tempfile
 from pathlib import Path
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, call, patch
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
@@ -12,6 +12,7 @@ from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
 from .models import OwnerProfile
+from .supabase_api import public_listings
 
 
 @override_settings(
@@ -20,6 +21,56 @@ from .models import OwnerProfile
     RENTAL_STAFF_PASSWORD="test-only-password-123",
 )
 class SupabaseApiWorkflowTests(TestCase):
+    @patch("rentals.supabase_api.admin_client")
+    def test_land_feed_also_includes_published_home_sales(self, get_admin):
+        land_listing = {
+            "id": 31,
+            "title": "Lekki plot",
+            "category": "land",
+            "transaction_type": "sale",
+            "updated_at": "2026-11-02T00:00:00+00:00",
+        }
+        home_sale = {
+            "id": 32,
+            "title": "2 3-bedroom flats for sale",
+            "category": "home",
+            "transaction_type": "sale",
+            "updated_at": "2026-11-03T00:00:00+00:00",
+        }
+        client = MagicMock()
+        get_admin.return_value = client
+        query = client.table.return_value.select.return_value
+        query.eq.return_value = query
+        query.order.return_value = query
+        query.limit.return_value = query
+        query.in_.return_value = query
+        query.execute.side_effect = [
+            SimpleNamespace(data=[land_listing]),
+            SimpleNamespace(data=[home_sale]),
+            SimpleNamespace(data=[]),
+        ]
+
+        listings = public_listings(category="land", transaction_type=None)
+
+        self.assertEqual(
+            [listing["title"] for listing in listings],
+            ["2 3-bedroom flats for sale", "Lekki plot"],
+        )
+        self.assertEqual(listings[0]["category"], "home")
+        self.assertEqual(listings[0]["transaction_type"], "sale")
+        self.assertIn(
+            call("category", "land"),
+            query.eq.call_args_list,
+        )
+        self.assertIn(
+            call("category", "home"),
+            query.eq.call_args_list,
+        )
+        self.assertIn(
+            call("transaction_type", "sale"),
+            query.eq.call_args_list,
+        )
+
     def test_public_listings_api_filters_and_returns_csrf_token(self):
         with patch(
             "rentals.api_views.public_listings",

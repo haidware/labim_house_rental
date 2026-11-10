@@ -81,23 +81,39 @@ def public_listings(
     category=RentalListing.Category.HOME,
     transaction_type=RentalListing.TransactionType.RENT,
 ):
-    query = (
-        admin_client()
-        .table("rental_listings")
-        .select("*")
-        .eq("status", RentalListing.PublicationStatus.PUBLISHED)
-        .eq("category", category)
-    )
-    if transaction_type:
-        query = query.eq("transaction_type", transaction_type)
-    result = (
-        query.order("updated_at", desc=True).limit(500).execute().data or []
-    )
+    client = admin_client()
+
+    def published_query(listing_category, listing_transaction_type):
+        query = (
+            client.table("rental_listings")
+            .select("*")
+            .eq("status", RentalListing.PublicationStatus.PUBLISHED)
+            .eq("category", listing_category)
+        )
+        if listing_transaction_type:
+            query = query.eq("transaction_type", listing_transaction_type)
+        return query.order("updated_at", desc=True).limit(500).execute().data or []
+
+    result = published_query(category, transaction_type)
+    if category == RentalListing.Category.LAND and transaction_type in {
+        None,
+        RentalListing.TransactionType.SALE,
+    }:
+        home_sales = published_query(
+            RentalListing.Category.HOME,
+            RentalListing.TransactionType.SALE,
+        )
+        result.extend(home_sales)
+        result.sort(
+            key=lambda listing: listing.get("updated_at", ""),
+            reverse=True,
+        )
+
     listing_ids = [listing["id"] for listing in result]
     photos_by_listing = {}
     if listing_ids:
         photos = (
-            admin_client()
+            client
             .table("rental_listing_photos")
             .select("*")
             .in_("listing_id", listing_ids)
