@@ -607,6 +607,9 @@ class SupabaseApiWorkflowTests(TestCase):
         self.assertContains(response, "<progress", html=False)
         self.assertContains(response, "Uploading video...")
         self.assertContains(response, "Property video")
+        self.assertContains(response, 'form.getAttribute("action")')
+        self.assertContains(response, 'form.setAttribute("action"')
+        self.assertNotContains(response, "form.action")
 
     @patch(
         "rentals.api_views.row_by_id",

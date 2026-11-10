@@ -144,6 +144,7 @@
   }
 
   document.querySelectorAll("[data-rental-video-upload]").forEach((form) => {
+    let formAction = form.getAttribute("action") || window.location.href;
     const videoInput = form.querySelector('input[name="video"]');
     const pathInput = form.querySelector('input[name="video_path"]');
     const durationInput = form.querySelector('input[name="video_duration"]');
@@ -185,7 +186,7 @@
       let objectUrl;
       const uploadKey = [
         "rental-video-tus",
-        form.action,
+        formAction,
         file.name,
         file.size,
         file.lastModified
@@ -218,7 +219,7 @@
         if (keepNewListingDraft) {
           listingData.set("status", "draft");
         }
-        const saved = await fetch(form.action, {
+        const saved = await fetch(formAction, {
           method: "POST",
           headers: {"Accept": "application/json"},
           body: listingData
@@ -227,7 +228,8 @@
         if (!saved.ok) {
           throw new Error(listingResult.error || "Could not save listing details.");
         }
-        form.action = listingResult.edit_url;
+        form.setAttribute("action", listingResult.edit_url);
+        formAction = form.getAttribute("action");
         if (form.dataset.newListing === "true") {
           form.dataset.pendingNewVideo = "true";
         }
