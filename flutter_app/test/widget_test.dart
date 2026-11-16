@@ -334,6 +334,7 @@ void main() {
   ) async {
     final requests = <http.Request>[];
     final whatsappUris = <Uri>[];
+    final requestFlow = <String>[];
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -345,6 +346,7 @@ void main() {
           api: RentalApi(
             client: MockClient((request) async {
               requests.add(request);
+              requestFlow.add('api:${request.url.path}');
               if (request.url.path == '/api/public/listings/') {
                 return _listingResponse();
               }
@@ -361,7 +363,12 @@ void main() {
               }
               return http.Response('{}', 404);
             }),
+            whatsappWindowPreparer: () async {
+              requestFlow.add('prepare-whatsapp');
+              return true;
+            },
             whatsappLauncher: (uri) async {
+              requestFlow.add('open-whatsapp');
               whatsappUris.add(uri);
               return true;
             },
@@ -370,6 +377,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    requestFlow.clear();
 
     await tester.scrollUntilVisible(
       find.text('Request Inspection'),
@@ -404,6 +412,18 @@ void main() {
     expect(
       jsonDecode(submission.body)['preferred_date'],
       matches(RegExp(r'^\d{4}-\d{2}-\d{2}$')),
+    );
+    final inspectionRequestIndex = requestFlow.indexWhere(
+      (event) =>
+          event.startsWith('api:') && event.endsWith('/inspection-requests/'),
+    );
+    expect(
+      requestFlow.indexOf('prepare-whatsapp'),
+      lessThan(inspectionRequestIndex),
+    );
+    expect(
+      inspectionRequestIndex,
+      lessThan(requestFlow.indexOf('open-whatsapp')),
     );
     expect(whatsappUris, hasLength(1));
     expect(whatsappUris.single.host, 'wa.me');

@@ -1965,6 +1965,7 @@ class _InspectionDialogState extends State<_InspectionDialog> {
       _error = null;
     });
     try {
+      final canOpenWhatsApp = await widget.api.prepareWhatsAppWindow();
       final result = await widget.api.requestInspection(
         listing: widget.listing,
         guestName: _name.text.trim(),
@@ -1993,7 +1994,14 @@ class _InspectionDialogState extends State<_InspectionDialog> {
         }
         return;
       }
-      await _openWhatsApp();
+      if (canOpenWhatsApp) {
+        await _openWhatsApp();
+      } else if (mounted) {
+        setState(
+          () => _error =
+              'Your request was saved, but WhatsApp could not be opened. Tap Open WhatsApp to try again.',
+        );
+      }
     } on RentalApiException catch (error) {
       if (mounted) setState(() => _error = error.message);
     } catch (_) {
