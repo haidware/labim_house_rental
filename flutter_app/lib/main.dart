@@ -9,6 +9,9 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:video_player/video_player.dart';
 
 import 'services/video_fullscreen.dart';
+import 'whatsapp_window_stub.dart'
+    if (dart.library.js_interop) 'whatsapp_window_web.dart'
+    as whatsapp_window;
 
 const _navy = Color(0xFF153D4C);
 const _teal = Color(0xFF17607A);
@@ -186,10 +189,10 @@ class RentalApi {
        _whatsappWindowPreparer = whatsappWindowPreparer,
        _proxyPrefix = proxyPrefix ?? _rentalProxyPrefix;
 
-  static const _whatsappWindowName = 'rooms_whatsapp';
   final http.Client _client;
   final Future<bool> Function(Uri)? _whatsappLauncher;
   final Future<bool> Function()? _whatsappWindowPreparer;
+  whatsapp_window.WhatsAppWindow? _whatsappWindow;
   final String _proxyPrefix;
   String? _csrfToken;
 
@@ -383,16 +386,23 @@ class RentalApi {
     final prepareWindow = _whatsappWindowPreparer;
     if (prepareWindow != null) return prepareWindow();
     if (!kIsWeb) return Future.value(true);
-    return launchUrl(
-      Uri.parse('about:blank'),
-      webOnlyWindowName: _whatsappWindowName,
-    );
+    final window = whatsapp_window.openWhatsAppWindow();
+    if (window == null) return Future.value(false);
+    _whatsappWindow = window;
+    return Future.value(true);
   }
 
-  Future<bool> launchWhatsApp(Uri uri) {
+  Future<bool> launchWhatsApp(Uri uri) async {
     final launcher = _whatsappLauncher;
     if (launcher != null) return launcher(uri);
-    return launchUrl(uri, webOnlyWindowName: _whatsappWindowName);
+    if (kIsWeb) {
+      final window = _whatsappWindow;
+      _whatsappWindow = null;
+      if (window == null || window.closed) return false;
+      window.navigate(uri.toString());
+      return true;
+    }
+    return launchUrl(uri, mode: LaunchMode.externalApplication);
   }
 
   void dispose() => _client.close();
