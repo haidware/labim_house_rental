@@ -240,6 +240,7 @@ void main() {
   ) async {
     final requests = <http.Request>[];
     final whatsappUris = <Uri>[];
+    final requestFlow = <String>[];
     tester.view.physicalSize = const Size(390, 844);
     tester.view.devicePixelRatio = 1;
     addTearDown(tester.view.resetPhysicalSize);
@@ -252,6 +253,7 @@ void main() {
           api: RentalApi(
             client: MockClient((request) async {
               requests.add(request);
+              requestFlow.add('api:${request.url.path}');
               if (request.url.path == '/api/public/listings/') {
                 return _landListingResponse();
               }
@@ -268,7 +270,12 @@ void main() {
               }
               return http.Response('{}', 404);
             }),
+            whatsappWindowPreparer: () async {
+              requestFlow.add('prepare-whatsapp');
+              return true;
+            },
             whatsappLauncher: (uri) async {
+              requestFlow.add('open-whatsapp');
               whatsappUris.add(uri);
               return true;
             },
@@ -277,6 +284,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    requestFlow.clear();
 
     await tester.tap(find.text('List land/property'));
     await tester.pumpAndSettle();
@@ -306,6 +314,14 @@ void main() {
     expect(request.url.path, '/api/public/property-requests/');
     expect(jsonDecode(request.body)['property_type'], 'land');
     expect(jsonDecode(request.body)['terms_accepted'], isTrue);
+    expect(
+      requestFlow.indexOf('prepare-whatsapp'),
+      lessThan(requestFlow.indexOf('api:/api/public/property-requests/')),
+    );
+    expect(
+      requestFlow.indexOf('api:/api/public/property-requests/'),
+      lessThan(requestFlow.indexOf('open-whatsapp')),
+    );
     expect(whatsappUris, hasLength(1));
     expect(whatsappUris.single.host, 'wa.me');
     expect(whatsappUris.single.path, '/2348127499576');

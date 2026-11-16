@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
@@ -178,13 +179,17 @@ class RentalApi {
   RentalApi({
     http.Client? client,
     Future<bool> Function(Uri)? whatsappLauncher,
+    Future<bool> Function()? whatsappWindowPreparer,
     String? proxyPrefix,
   }) : _client = client ?? http.Client(),
        _whatsappLauncher = whatsappLauncher,
+       _whatsappWindowPreparer = whatsappWindowPreparer,
        _proxyPrefix = proxyPrefix ?? _rentalProxyPrefix;
 
+  static const _whatsappWindowName = 'rooms_whatsapp';
   final http.Client _client;
   final Future<bool> Function(Uri)? _whatsappLauncher;
+  final Future<bool> Function()? _whatsappWindowPreparer;
   final String _proxyPrefix;
   String? _csrfToken;
 
@@ -374,9 +379,21 @@ class RentalApi {
     return Uri.https('wa.me', '/$recipient', {'text': details});
   }
 
-  Future<bool> launchWhatsApp(Uri uri) =>
-      _whatsappLauncher?.call(uri) ??
-      launchUrl(uri, webOnlyWindowName: '_blank');
+  Future<bool> prepareWhatsAppWindow() {
+    final prepareWindow = _whatsappWindowPreparer;
+    if (prepareWindow != null) return prepareWindow();
+    if (!kIsWeb) return Future.value(true);
+    return launchUrl(
+      Uri.parse('about:blank'),
+      webOnlyWindowName: _whatsappWindowName,
+    );
+  }
+
+  Future<bool> launchWhatsApp(Uri uri) {
+    final launcher = _whatsappLauncher;
+    if (launcher != null) return launcher(uri);
+    return launchUrl(uri, webOnlyWindowName: _whatsappWindowName);
+  }
 
   void dispose() => _client.close();
 }
@@ -1675,6 +1692,8 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
       _error = null;
     });
     try {
+      final canOpenWhatsApp =
+          _requestSaved || await widget.api.prepareWhatsAppWindow();
       if (!_requestSaved) {
         final result = await widget.api.requestProperty(
           ownerName: _name.text.trim(),
@@ -1686,7 +1705,8 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
         _savedWhatsAppUrl = result.whatsappUrl;
         _savedMessage = result.message;
       }
-      final opened = await widget.api.launchWhatsApp(_savedWhatsAppUrl!);
+      final opened = canOpenWhatsApp &&
+          await widget.api.launchWhatsApp(_savedWhatsAppUrl!);
       if (opened && mounted) {
         Navigator.pop(context, _savedMessage);
       } else if (mounted) {
