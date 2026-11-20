@@ -109,7 +109,7 @@ class PublicInspectionRequestForm(forms.ModelForm):
         widgets = {
             "preferred_date": forms.DateInput(attrs={"type": "date"}),
             "message": forms.Textarea(
-                attrs={"rows": 3, "placeholder": "Anything else Rooms should know?"}
+                attrs={"rows": 3, "placeholder": "Anything else NaijaRooms should know?"}
             ),
         }
 
@@ -118,7 +118,7 @@ class PropertyListingRequestForm(forms.ModelForm):
     terms_accepted = forms.BooleanField(
         label=(
             "I confirm that I own or am authorized to represent this property, "
-            "that it is available for rent, and I agree Rooms may contact me "
+            "that it is available for rent, and I agree NaijaRooms may contact me "
             "and visit the address to verify it. I understand this request "
             "does not guarantee a listing or publication."
         ),

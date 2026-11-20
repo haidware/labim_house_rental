@@ -1,25 +1,25 @@
 # Labim House Rental Admin
 
-Standalone Django project for the Rooms house-rental marketplace and its listing
+Standalone Django project for the NaijaRooms house-rental marketplace and its listing
 administration. Homeowners submit a property address, property type and phone
-number; Rooms contacts them to arrange an in-person verification visit and
+number; NaijaRooms contacts them to arrange an in-person verification visit and
 handles photos and listing details. Land/property owners can still request
 accounts to manage their listings.
 
 ## Features
 
-- Flutter web Rooms marketplace showing Haidware-reviewed homes for rent and
+- Flutter web NaijaRooms marketplace showing Haidware-reviewed homes for rent and
   land/property listings for rent or sale.
 - Home search by location, city, and maximum monthly rent.
 - Land/property search by location, city, listing type, and price at `/land`.
-- When served through the Rooms same-origin proxy, the app supports the
+- When served through the NaijaRooms same-origin proxy, the app supports the
   `/rentals` mount path for its web assets, API requests, and internal links.
 - Public viewing requests saved for staff follow-up and opened as a detailed,
   prefilled WhatsApp message to the landlord number assigned to that listing.
   Guests must review and tap **Send** in WhatsApp; requests are not sent
   automatically, and uploaded photos are not attached.
 - Home rental requests require property details and owner agreement to a
-  verification visit; Rooms manages the visit, photos and listing setup.
+  verification visit; NaijaRooms manages the visit, photos and listing setup.
 - Staff track new home requests, contact owners, schedule visits and record
   verification status in the Supabase-backed staff portal.
 - Owner account requests remain pending until Haidware approves them in the
@@ -57,7 +57,7 @@ python manage.py runserver
 
 With the rental Supabase REST environment variables set in `.env`, open
 http://127.0.0.1:8000/ to browse published homes, request a viewing, or submit
-a home for Rooms to verify. Flutter calls Django's same-origin
+a home for NaijaRooms to verify. Flutter calls Django's same-origin
 `/api/public/` endpoints; Django continues to access the rental Supabase
 project and handles validation, CSRF protection, and writes. Staff follow up
 on property visit requests, prepare and publish verified listings, and manage
@@ -160,8 +160,8 @@ metadata only and is not the application data store.
 
 For a zero-downtime move, keep the existing Render service running while
 Railway builds and passes `/health/`. Then verify the Railway public URL and
-marketplace/API behavior, update the Rooms app's `RENTAL_SERVICE_URL` to that
-URL, and confirm Homes and Land work through the Rooms same-origin proxy.
+marketplace/API behavior, update the NaijaRooms app's `RENTAL_SERVICE_URL` to that
+URL, and confirm Homes and Land work through the NaijaRooms same-origin proxy.
 Only retire the Render service after those checks pass.
 
 The container start command runs `python manage.py migrate --noinput`; those

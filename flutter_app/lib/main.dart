@@ -46,8 +46,8 @@ class RoomsRentalApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: landProperties
-          ? 'Rooms | Land and properties'
-          : 'Rooms | Homes for rent',
+          ? 'NaijaRooms | Land and properties'
+          : 'NaijaRooms | Homes for rent',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
@@ -338,7 +338,7 @@ class RentalApi {
     final whatsappNumber = result['whatsapp_number']?.toString().trim() ?? '';
     if (whatsappNumber.isEmpty) {
       throw const RentalApiException(
-        'The landlord WhatsApp number is not configured for this listing. Please contact Rooms.',
+        'The landlord WhatsApp number is not configured for this listing. Please contact NaijaRooms.',
       );
     }
     return InspectionRequestSubmission(
@@ -563,66 +563,74 @@ class _RentalHomePageState extends State<RentalHomePage> {
     );
   }
 
-  Widget _buildHeader() => Container(
-    decoration: const BoxDecoration(
-      color: _navy,
-      border: Border(bottom: BorderSide(color: Color(0xFF244F5D))),
-    ),
-    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
-    child: Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 1240),
-        child: Row(
-          children: [
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                color: _gold,
-                borderRadius: BorderRadius.circular(10),
-              ),
-              child: const Icon(
-                Icons.home_outlined,
-                color: Color(0xFF082A55),
-                size: 30,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Semantics(
-              label: 'Rooms',
-              child: ExcludeSemantics(
-                child: Text.rich(
-                  const TextSpan(
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 27,
-                      fontWeight: FontWeight.w800,
-                      letterSpacing: -1.1,
-                    ),
-                    children: [
-                      TextSpan(text: 'Rooms'),
-                      TextSpan(
-                        text: '.',
-                        style: TextStyle(color: Color(0xFFE53950)),
-                      ),
-                    ],
+  Widget _buildHeader() => LayoutBuilder(
+    builder: (context, constraints) {
+      final compact = constraints.maxWidth < 460;
+      return Container(
+        decoration: const BoxDecoration(
+          color: _navy,
+          border: Border(bottom: BorderSide(color: Color(0xFF244F5D))),
+        ),
+        padding: EdgeInsets.symmetric(
+          horizontal: compact ? 12 : 20,
+          vertical: 15,
+        ),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 1240),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: _gold,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: const Icon(
+                    Icons.home_outlined,
+                    color: Color(0xFF082A55),
+                    size: 30,
                   ),
                 ),
-              ),
+                const SizedBox(width: 12),
+                Semantics(
+                  label: 'NaijaRooms',
+                  child: ExcludeSemantics(
+                    child: Text.rich(
+                      TextSpan(
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: compact ? 20 : 27,
+                          fontWeight: FontWeight.w800,
+                          letterSpacing: -1.1,
+                        ),
+                        children: const [
+                          TextSpan(text: 'NaijaRooms'),
+                          TextSpan(
+                            text: '.',
+                            style: TextStyle(color: Color(0xFFE53950)),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                const Spacer(),
+                Tooltip(
+                  message: 'Owner sign in',
+                  child: IconButton(
+                    onPressed: () => _openInternal('/accounts/login/'),
+                    icon: const Icon(Icons.lock_outline, size: 19),
+                    color: const Color(0xFFC1D5D9),
+                  ),
+                ),
+              ],
             ),
-            const Spacer(),
-            Tooltip(
-              message: 'Owner sign in',
-              child: IconButton(
-                onPressed: () => _openInternal('/accounts/login/'),
-                icon: const Icon(Icons.lock_outline, size: 19),
-                color: const Color(0xFFC1D5D9),
-              ),
-            ),
-          ],
+          ),
         ),
-      ),
-    ),
+      );
+    },
   );
 
   Widget _buildCategoryBar() => Container(
@@ -728,8 +736,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
             const SizedBox(height: 10),
             Text(
               widget.landProperties
-                  ? 'Explore land and properties for rent or sale, reviewed by Rooms.'
-                  : 'Choose from homes available for rent, reviewed by Rooms.',
+                  ? 'Explore land and properties for rent or sale, reviewed by NaijaRooms.'
+                  : 'Choose from homes available for rent, reviewed by NaijaRooms.',
               style: const TextStyle(color: _muted, fontSize: 17, height: 1.5),
             ),
             const SizedBox(height: 18),
@@ -875,8 +883,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
             const SizedBox(height: 4),
             Text(
               widget.landProperties
-                  ? 'Apply to list your land or property with Rooms.'
-                  : 'Apply to list your home with Rooms.',
+                  ? 'Apply to list your land or property with NaijaRooms.'
+                  : 'Apply to list your home with NaijaRooms.',
               style: TextStyle(color: Color(0xFFD7E4E6), fontSize: 13),
             ),
           ],
@@ -1072,8 +1080,8 @@ class _RentalHomePageState extends State<RentalHomePage> {
             final cards = [
               _InfoCard(
                 title: widget.landProperties
-                    ? 'How Rooms reviews properties'
-                    : 'How Rooms works',
+                    ? 'How NaijaRooms reviews properties'
+                    : 'How NaijaRooms works',
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -1084,13 +1092,13 @@ class _RentalHomePageState extends State<RentalHomePage> {
                     ),
                     _StepText(
                       widget.landProperties
-                          ? 'Rooms contacts owners to verify the property.'
-                          : 'Rooms contacts the owner and visits to verify the home.',
+                          ? 'NaijaRooms contacts owners to verify the property.'
+                          : 'NaijaRooms contacts the owner and visits to verify the home.',
                     ),
                     _StepText(
                       widget.landProperties
                           ? 'Verified land/property details are reviewed for listing.'
-                          : 'Rooms handles property photos and prepares listing details.',
+                          : 'NaijaRooms handles property photos and prepares listing details.',
                     ),
                     _StepText(
                       'The verified listing is reviewed before it is published.',
@@ -1105,7 +1113,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       const Text(
-                        'Send your land or property details to the Rooms admin for review and verification.',
+                        'Send your land or property details to the NaijaRooms admin for review and verification.',
                         style: TextStyle(color: _muted, height: 1.5),
                       ),
                       const SizedBox(height: 14),
@@ -1149,7 +1157,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
       border: Border(top: BorderSide(color: _line)),
     ),
     child: const Text(
-      '© Rooms. Home rental made clearer. Only Haidware-reviewed listings are displayed.',
+      '© NaijaRooms. Home rental made clearer. Only Haidware-reviewed listings are displayed.',
       textAlign: TextAlign.center,
       style: TextStyle(color: _muted, fontSize: 12),
     ),
@@ -1754,7 +1762,7 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
             mainAxisSize: MainAxisSize.min,
             children: [
               const Text(
-                'Share the details and we will save your request, then open a prepared WhatsApp message to the Rooms admin. You must tap Send in WhatsApp.',
+                'Share the details and we will save your request, then open a prepared WhatsApp message to the NaijaRooms admin. You must tap Send in WhatsApp.',
                 style: TextStyle(color: _muted),
               ),
               const SizedBox(height: 16),
@@ -1837,8 +1845,8 @@ class _PropertyRequestDialogState extends State<_PropertyRequestDialog> {
                     setState(() => _termsAccepted = value ?? false),
                 title: Text(
                   widget.landProperties
-                      ? 'I own or am authorized to represent this land/property, and I agree Rooms may contact me and visit to verify it. I understand this does not guarantee publication.'
-                      : 'I own or am authorized to represent this property, it is available for rent, and I agree Rooms may contact me and visit to verify it. I understand this does not guarantee publication.',
+                      ? 'I own or am authorized to represent this land/property, and I agree NaijaRooms may contact me and visit to verify it. I understand this does not guarantee publication.'
+                      : 'I own or am authorized to represent this property, it is available for rent, and I agree NaijaRooms may contact me and visit to verify it. I understand this does not guarantee publication.',
                   style: TextStyle(fontSize: 12),
                 ),
                 controlAffinity: ListTileControlAffinity.leading,
@@ -1999,7 +2007,7 @@ class _InspectionDialogState extends State<_InspectionDialog> {
         if (mounted) {
           setState(
             () => _error =
-                'The landlord WhatsApp number is invalid. Please contact Rooms.',
+                'The landlord WhatsApp number is invalid. Please contact NaijaRooms.',
           );
         }
         return;

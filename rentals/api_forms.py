@@ -94,7 +94,7 @@ class PropertyListingRequestForm(forms.Form):
     terms_accepted = forms.BooleanField(
         label=(
             "I confirm that I own or am authorized to represent this property, "
-            "and I agree Rooms may contact me "
+            "and I agree NaijaRooms may contact me "
             "and visit the address to verify it. I understand this request "
             "does not guarantee a listing or publication."
         )

@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Tell Rooms about your home for rent and arrange a property verification visit.">
-    <title>List your property | Rooms</title>
+    <meta name="description" content="Tell NaijaRooms about your home for rent and arrange a property verification visit.">
+    <title>List your property | NaijaRooms</title>
     <style>
       :root { color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif; color: #153d4c; background: #f8fafb; --teal: #17607a; --navy: #173f4c; --muted: #667477; --line: #dfe5e6; --yellow: #ffc629; }
       * { box-sizing: border-box; }
@@ -56,26 +56,26 @@
   <body>
     <header class="topbar">
       <nav class="nav" aria-label="Main navigation">
-        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+        <a class="brand" href="{% url 'home' %}" aria-label="NaijaRooms home">
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
             </svg>
           </span>
-          <span>Rooms<span class="brand-dot">.</span></span>
+          <span>NaijaRooms<span class="brand-dot">.</span></span>
         </a>
         <a class="back" href="{% url 'home' %}">← Back to homes</a>
       </nav>
     </header>
     <main>
       <section class="card">
-        <p class="eyebrow">Rooms home rentals</p>
+        <p class="eyebrow">NaijaRooms home rentals</p>
         <h1>Tell us about your property</h1>
-        <p class="intro">Share the property address and your contact details. The Rooms team will call you to arrange a visit and verify the home before taking photos and preparing its listing.</p>
+        <p class="intro">Share the property address and your contact details. The NaijaRooms team will call you to arrange a visit and verify the home before taking photos and preparing its listing.</p>
         <ol class="steps">
           <li><span class="step-number">1</span><span>Send your property details and agree to a verification visit.</span></li>
-          <li><span class="step-number">2</span><span>Rooms contacts you to arrange a visit and verify the property.</span></li>
-          <li><span class="step-number">3</span><span>After verification, Rooms handles photos and listing details before review and publication.</span></li>
+          <li><span class="step-number">2</span><span>NaijaRooms contacts you to arrange a visit and verify the property.</span></li>
+          <li><span class="step-number">3</span><span>After verification, NaijaRooms handles photos and listing details before review and publication.</span></li>
         </ol>
         <form method="post">
           {% csrf_token %}
@@ -97,7 +97,7 @@
           </div>
           {% for error in form.terms_accepted.errors %}<p class="errors">{{ error }}</p>{% endfor %}
           <button class="button" type="submit">Send property request <span aria-hidden="true">→</span></button>
-          <p class="note">This is a request for a Rooms visit, not a published listing. There is no charge for submitting this form.</p>
+          <p class="note">This is a request for a NaijaRooms visit, not a published listing. There is no charge for submitting this form.</p>
         </form>
       </section>
     </main>

@@ -117,7 +117,7 @@ def public_inspection_request(request, slug):
                 None,
                 (
                     "The landlord WhatsApp number is not configured for this "
-                    "listing. Please contact Rooms."
+                    "listing. Please contact NaijaRooms."
                 ),
             )
             return _render_public_home(

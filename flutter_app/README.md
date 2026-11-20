@@ -1,6 +1,6 @@
-# Rooms Rental Web
+# NaijaRooms Rental Web
 
-Flutter web customer interface for the Rooms rental marketplace. It uses the
+Flutter web customer interface for the NaijaRooms rental marketplace. It uses the
 Django app at the repository root for same-origin rental APIs and leaves the
 existing Django staff and owner portals in place.
 

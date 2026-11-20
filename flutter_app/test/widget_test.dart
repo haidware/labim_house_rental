@@ -91,7 +91,7 @@ void main() {
   );
 
   testWidgets(
-    'rental homepage matches Rooms categories and displays live data',
+    'rental homepage matches NaijaRooms categories and displays live data',
     (tester) async {
       tester.view.physicalSize = const Size(390, 844);
       tester.view.devicePixelRatio = 1;
@@ -99,11 +99,13 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       await tester.pumpWidget(
-        MaterialApp(home: RentalHomePage(api: RentalApi(client: _mockClient()))),
+        MaterialApp(
+          home: RentalHomePage(api: RentalApi(client: _mockClient())),
+        ),
       );
       await tester.pumpAndSettle();
 
-      expect(find.text('Rooms.'), findsOneWidget);
+      expect(find.text('NaijaRooms.'), findsOneWidget);
       expect(find.text('Hotels'), findsOneWidget);
       expect(find.text('Apartment'), findsOneWidget);
       expect(find.text('Homes'), findsOneWidget);
@@ -215,7 +217,7 @@ void main() {
     expect(find.text('Find land and properties'), findsOneWidget);
     expect(find.text('Own land or property?'), findsOneWidget);
     expect(
-      find.text('Apply to list your land or property with Rooms.'),
+      find.text('Apply to list your land or property with NaijaRooms.'),
       findsOneWidget,
     );
     final listPropertyButton = find.text('List land/property');

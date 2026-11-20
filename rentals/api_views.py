@@ -380,7 +380,7 @@ def public_api_property_request(request):
     return JsonResponse(
         {
             "message": (
-                "Your request was saved. Review and send it to the Rooms admin "
+                "Your request was saved. Review and send it to the NaijaRooms admin "
                 "in WhatsApp."
             ),
             "whatsapp_url": whatsapp_url,
@@ -422,7 +422,7 @@ def public_api_inspection_request(request, slug):
             {
                 "error": (
                     "The landlord WhatsApp number is not configured for this "
-                    "listing. Please contact Rooms."
+                    "listing. Please contact NaijaRooms."
                 )
             },
             status=503,
@@ -534,7 +534,7 @@ def public_inspection_request(request, slug):
             )
         messages.success(
             request,
-            "Your viewing request has been sent to Rooms. Our team will contact you.",
+            "Your viewing request has been sent to NaijaRooms. Our team will contact you.",
         )
         return redirect(f"{reverse('home')}#listings")
 
@@ -661,7 +661,7 @@ def login(request):
             return redirect("dashboard")
         form.add_error(
             None,
-            "Sign-in failed. Check your details or contact Rooms if your owner account is awaiting approval.",
+            "Sign-in failed. Check your details or contact NaijaRooms if your owner account is awaiting approval.",
         )
     return render(
         request,
@@ -1382,7 +1382,7 @@ def _owner_listing_form(request, listing=None):
                 logger.exception("Could not save owner rental listing.")
                 form.add_error(
                     None,
-                    "Your listing could not be saved completely. Please contact Rooms before retrying.",
+                    "Your listing could not be saved completely. Please contact NaijaRooms before retrying.",
                 )
                 return render(
                     request,

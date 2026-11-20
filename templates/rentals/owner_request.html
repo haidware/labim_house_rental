@@ -3,8 +3,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Request an owner account for a land or property listing with Rooms.">
-    <title>Request a land/property account | Rooms</title>
+    <meta name="description" content="Request an owner account for a land or property listing with NaijaRooms.">
+    <title>Request a land/property account | NaijaRooms</title>
     <style>
       :root { color-scheme: light; font-family: Inter, "Segoe UI", Arial, sans-serif; color: #153d4c; background: #f7f9f9; --teal: #17607a; --navy: #153d4c; --muted: #64777b; --line: #dfe8e9; --yellow: #ffc629; }
       * { box-sizing: border-box; }
@@ -51,13 +51,13 @@
   <body>
     <header class="topbar">
       <nav class="nav" aria-label="Main navigation">
-        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+        <a class="brand" href="{% url 'home' %}" aria-label="NaijaRooms home">
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
             </svg>
           </span>
-          <span>Rooms<span class="brand-dot">.</span></span>
+          <span>NaijaRooms<span class="brand-dot">.</span></span>
         </a>
         <a class="back-link" href="{% url 'home' %}">← Back to homes</a>
       </nav>
@@ -66,7 +66,7 @@
       <section class="card">
         <p class="eyebrow">Land and property listings</p>
         <h1>Request an owner account</h1>
-        <p class="intro">Create an account to manage a land or property listing. The Rooms team will review your account request before you can sign in.</p>
+        <p class="intro">Create an account to manage a land or property listing. The NaijaRooms team will review your account request before you can sign in.</p>
         <p class="approval-note"><strong>What happens next?</strong> Haidware reviews your account request. After approval, you can submit and manage your land or property details.</p>
         <form method="post">
           {% csrf_token %}

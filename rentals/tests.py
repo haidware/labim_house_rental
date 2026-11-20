@@ -63,7 +63,7 @@ class RentalAdminTests(TestCase):
         self.assertNotContains(response, "+2348012345678")
         self.assertContains(response, "Own a home for rent?")
         self.assertContains(response, "List a home for rent")
-        self.assertContains(response, "Rooms contacts the owner")
+        self.assertContains(response, "NaijaRooms contacts the owner")
         self.assertContains(response, reverse("property_listing_request"))
         page = response.content.decode()
         banner_position = page.index('class="owner-banner"')
@@ -288,7 +288,7 @@ class RentalAdminTests(TestCase):
         self.assertContains(response, "Phone number")
         self.assertContains(response, "Type of property for rent")
         self.assertContains(response, "Full property address")
-        self.assertContains(response, "agree Rooms may contact me")
+        self.assertContains(response, "agree NaijaRooms may contact me")
 
     def test_property_request_records_owner_details_and_terms(self):
         response = self.client.post(

@@ -186,14 +186,14 @@ class SupabaseApiWorkflowTests(TestCase):
         with tempfile.TemporaryDirectory() as temp_directory:
             build_directory = Path(temp_directory)
             (build_directory / "index.html").write_text(
-                "<html>Rooms land properties</html>",
+                "<html>NaijaRooms land properties</html>",
                 encoding="utf-8",
             )
             with self.settings(FLUTTER_WEB_BUILD_DIRECTORY=build_directory):
                 response = self.client.get("/land")
 
             self.assertEqual(response.status_code, 200)
-            self.assertContains(response, "Rooms land properties")
+            self.assertContains(response, "NaijaRooms land properties")
 
     @patch("rentals.api_views.public_listings", return_value=[])
     def test_staff_session_keeps_customer_homepage_at_root(self, public_listings):

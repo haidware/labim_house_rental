@@ -4,8 +4,8 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <meta name="description" content="Find a home for rent across Nigeria. Browse Haidware-reviewed listings and request a viewing with Rooms.">
-    <title>Rooms | Homes for rent</title>
+    <meta name="description" content="Find a home for rent across Nigeria. Browse Haidware-reviewed listings and request a viewing with NaijaRooms.">
+    <title>NaijaRooms | Homes for rent</title>
     <style>
       :root {
         color-scheme: light;
@@ -166,13 +166,13 @@
   <body>
     <header class="topbar">
       <div class="wrap nav">
-        <a class="brand" href="{% url 'home' %}" aria-label="Rooms home">
+        <a class="brand" href="{% url 'home' %}" aria-label="NaijaRooms home">
           <span class="brand-mark" aria-hidden="true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.1" stroke-linecap="round" stroke-linejoin="round">
               <path d="m3 11 9-8 9 8"></path><path d="M5.5 10v10h13V10"></path><path d="M9 20v-6h6v6"></path>
             </svg>
           </span>
-          <span>Rooms<span class="brand-dot">.</span></span>
+          <span>NaijaRooms<span class="brand-dot">.</span></span>
         </a>
         <div class="nav-actions">
           <a class="owner-login" href="{% url 'accounts:login' %}" aria-label="Owner sign in" title="Owner sign in">
@@ -198,11 +198,11 @@
             <div class="hero-grid">
               <div>
                 <h1>Find your next home</h1>
-                <p class="intro">Choose from homes available for rent, reviewed by Rooms.</p>
+                <p class="intro">Choose from homes available for rent, reviewed by NaijaRooms.</p>
                 <div class="owner-banner">
                   <div>
                     <h2>Own a home for rent?</h2>
-                    <p>Apply to list your home with Rooms.</p>
+                    <p>Apply to list your home with NaijaRooms.</p>
                   </div>
                   <a class="button" href="{% url 'property_listing_request' %}">List a home for rent</a>
                 </div>
@@ -315,11 +315,11 @@
 
         <div class="info-grid info-grid-single" id="how-it-works">
           <section class="info-card">
-            <h2>How Rooms works</h2>
+            <h2>How NaijaRooms works</h2>
             <ol>
               <li>Owners share the address, property type and contact number.</li>
-              <li>Rooms contacts the owner and visits to verify the home.</li>
-              <li>Rooms handles property photos and prepares the listing details.</li>
+              <li>NaijaRooms contacts the owner and visits to verify the home.</li>
+              <li>NaijaRooms handles property photos and prepares the listing details.</li>
               <li>The verified listing is reviewed before it is published.</li>
             </ol>
           </section>
@@ -328,7 +328,7 @@
     </main>
 
     <footer>
-      <div class="wrap">© Rooms. Home rental made clearer. Only Haidware-reviewed listings are displayed.</div>
+      <div class="wrap">© NaijaRooms. Home rental made clearer. Only Haidware-reviewed listings are displayed.</div>
     </footer>
 
     <div class="modal{% if inspection_listing %} open{% endif %}" id="inspectionModal" role="dialog" aria-modal="true" aria-labelledby="inspectionTitle" aria-hidden="{% if inspection_listing %}false{% else %}true{% endif %}" onclick="if(event.target===this)closeInspection()">

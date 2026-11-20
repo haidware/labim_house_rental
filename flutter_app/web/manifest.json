@@ -1,11 +1,11 @@
 {
-    "name": "Rooms Homes for Rent",
-    "short_name": "Rooms",
+    "name": "NaijaRooms Homes for Rent",
+    "short_name": "NaijaRooms",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#F8FAFB",
     "theme_color": "#153D4C",
-    "description": "Find Haidware-reviewed homes for rent and request a viewing with Rooms.",
+    "description": "Find Haidware-reviewed homes for rent and request a viewing with NaijaRooms.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

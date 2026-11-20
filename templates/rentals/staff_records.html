@@ -3,7 +3,7 @@
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>Rental records | Rooms</title>
+    <title>Rental records | NaijaRooms</title>
     <style>
       :root { color-scheme: light; font-family: system-ui, sans-serif; color: #173651; background: #f4f7f9; }
       body { margin: 0; }
@@ -23,7 +23,7 @@
   </head>
   <body>
     <header>
-      <strong>Rooms rental management</strong>
+      <strong>NaijaRooms rental management</strong>
       <nav><a href="{% url 'dashboard' %}">Dashboard</a>
         <form method="post" action="{% url 'accounts:logout' %}" style="display:inline">
           {% csrf_token %}<button type="submit">Sign out</button>
