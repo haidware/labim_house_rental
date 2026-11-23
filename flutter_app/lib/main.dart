@@ -20,6 +20,7 @@ const _muted = Color(0xFF64777B);
 const _line = Color(0xFFDFE8E9);
 const _pale = Color(0xFFF0F6F6);
 const _gold = Color(0xFFFFC629);
+const _mainAppUrl = 'https://naijarooms.com';
 final _naira = NumberFormat.currency(
   locale: 'en_NG',
   symbol: '₦',
@@ -774,8 +775,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: _RoomsCategoryTab(
                 label: 'Hotels',
                 icon: Icons.bed_outlined,
-                onTap: () =>
-                    _openExternal('https://labimbooking-production.up.railway.app/'),
+                onTap: () => _openExternal('$_mainAppUrl/'),
               ),
             ),
             const SizedBox(width: 8),
@@ -783,9 +783,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: _RoomsCategoryTab(
                 label: 'Apartment',
                 icon: Icons.apartment_outlined,
-                onTap: () => _openExternal(
-                  'https://labimbooking-production.up.railway.app/apartment',
-                ),
+                onTap: () => _openExternal('$_mainAppUrl/apartment'),
               ),
             ),
             Expanded(
