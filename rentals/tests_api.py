@@ -8,10 +8,11 @@ from urllib.parse import parse_qs, urlsplit
 
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import Client, TestCase, override_settings
-from django.urls import reverse
+from django.urls import resolve, reverse
 from django.utils.datastructures import MultiValueDict
 from PIL import Image
 
+from . import api_views
 from .models import OwnerProfile
 from .supabase_api import public_listings
 
@@ -22,6 +23,17 @@ from .supabase_api import public_listings
     RENTAL_STAFF_PASSWORD="test-only-password-123",
 )
 class SupabaseApiWorkflowTests(TestCase):
+    def test_shareable_listing_paths_serve_the_flutter_app(self):
+        for path, route_name, slug in (
+            ("/homes/verified-family-home/", "shared_home_listing", "verified-family-home"),
+            ("/land/lekki-land/", "shared_land_listing", "lekki-land"),
+        ):
+            with self.subTest(path=path):
+                match = resolve(path)
+                self.assertEqual(match.func, api_views.home)
+                self.assertEqual(match.url_name, route_name)
+                self.assertEqual(match.kwargs["slug"], slug)
+
     @patch("rentals.supabase_api.admin_client")
     def test_land_feed_also_includes_published_home_sales(self, get_admin):
         land_listing = {

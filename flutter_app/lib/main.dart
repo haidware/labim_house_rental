@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -30,17 +31,49 @@ String get _rentalProxyPrefix =>
     ? '/rentals'
     : '';
 
+Uri rentalListingShareUri({
+  required Uri baseUri,
+  required bool landProperties,
+  required String slug,
+  String proxyPrefix = '',
+}) => Uri(
+  scheme: baseUri.scheme,
+  host: baseUri.host,
+  port: baseUri.hasPort ? baseUri.port : null,
+  path: '$proxyPrefix/${landProperties ? 'land' : 'homes'}/$slug/',
+);
+
 void main() {
-  final path = Uri.base.path.replaceFirst(RegExp(r'/$'), '');
+  final pathSegments = Uri.base.pathSegments
+      .where((segment) => segment.isNotEmpty)
+      .toList();
+  final isRentalProxy =
+      pathSegments.isNotEmpty && pathSegments.first == 'rentals';
+  final appPathSegments = isRentalProxy
+      ? pathSegments.skip(1).toList()
+      : pathSegments;
+  final path = appPathSegments.isNotEmpty ? appPathSegments.first : '';
+  final initialListingSlug =
+      appPathSegments.length > 1 && (path == 'land' || path == 'homes')
+      ? appPathSegments[1]
+      : null;
   runApp(
-    RoomsRentalApp(landProperties: path == '/land' || path == '/rentals/land'),
+    RoomsRentalApp(
+      landProperties: path == 'land',
+      initialListingSlug: initialListingSlug,
+    ),
   );
 }
 
 class RoomsRentalApp extends StatelessWidget {
-  const RoomsRentalApp({super.key, this.landProperties = false});
+  const RoomsRentalApp({
+    super.key,
+    this.landProperties = false,
+    this.initialListingSlug,
+  });
 
   final bool landProperties;
+  final String? initialListingSlug;
 
   @override
   Widget build(BuildContext context) {
@@ -67,7 +100,10 @@ class RoomsRentalApp extends StatelessWidget {
           ),
         ),
       ),
-      home: RentalHomePage(landProperties: landProperties),
+      home: RentalHomePage(
+        landProperties: landProperties,
+        initialListingSlug: initialListingSlug,
+      ),
     );
   }
 }
@@ -409,10 +445,16 @@ class RentalApi {
 }
 
 class RentalHomePage extends StatefulWidget {
-  const RentalHomePage({super.key, this.api, this.landProperties = false});
+  const RentalHomePage({
+    super.key,
+    this.api,
+    this.landProperties = false,
+    this.initialListingSlug,
+  });
 
   final RentalApi? api;
   final bool landProperties;
+  final String? initialListingSlug;
 
   @override
   State<RentalHomePage> createState() => _RentalHomePageState();
@@ -424,6 +466,7 @@ class _RentalHomePageState extends State<RentalHomePage> {
   late final RentalApi _api;
   List<RentalListing> _listings = const [];
   List<String> _cities = const [];
+  RentalListing? _sharedListing;
   String _budget = '';
   String _transactionType = 'all';
   String? _error;
@@ -458,9 +501,15 @@ class _RentalHomePageState extends State<RentalHomePage> {
         budget: _budget,
       );
       if (mounted) {
+        final matchingListings = result.listings.where(
+          (listing) => listing.slug == widget.initialListingSlug,
+        );
         setState(() {
           _listings = result.listings;
           _cities = result.cities;
+          _sharedListing = matchingListings.isEmpty
+              ? null
+              : matchingListings.first;
         });
       }
     } on RentalApiException catch (error) {
@@ -496,6 +545,17 @@ class _RentalHomePageState extends State<RentalHomePage> {
     if (message != null && mounted) _showMessage(message);
   }
 
+  Future<void> _shareListing(RentalListing listing) async {
+    final link = rentalListingShareUri(
+      baseUri: Uri.base,
+      landProperties: widget.landProperties,
+      slug: listing.slug,
+      proxyPrefix: _rentalProxyPrefix,
+    );
+    await Clipboard.setData(ClipboardData(text: link.toString()));
+    if (mounted) _showMessage('Share link copied to clipboard.');
+  }
+
   void _showMessage(String message) {
     ScaffoldMessenger.of(context)
       ..hideCurrentSnackBar()
@@ -515,53 +575,119 @@ class _RentalHomePageState extends State<RentalHomePage> {
               child: _buildCategoryBar(),
             ),
           ),
-          SliverToBoxAdapter(child: _buildHero()),
-          SliverToBoxAdapter(child: _buildResultsHeader()),
-          if (_error != null)
-            SliverToBoxAdapter(child: _buildError())
-          else if (_loading)
-            const SliverFillRemaining(
-              hasScrollBody: false,
-              child: Center(child: CircularProgressIndicator()),
-            )
-          else if (_listings.isEmpty)
-            SliverToBoxAdapter(child: _buildEmptyState())
-          else
-            SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 20),
-              sliver: SliverLayoutBuilder(
-                builder: (context, constraints) {
-                  final width = constraints.crossAxisExtent;
-                  final columns = width >= 1040
-                      ? 3
-                      : width >= 680
-                      ? 2
-                      : 1;
-                  return SliverGrid(
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: columns,
-                      crossAxisSpacing: 18,
-                      mainAxisSpacing: 18,
-                      mainAxisExtent: 500,
-                    ),
-                    delegate: SliverChildBuilderDelegate(
-                      (context, index) => _ListingCard(
-                        listing: _listings[index],
-                        onRequestViewing: () =>
-                            _showInspectionRequest(_listings[index]),
-                      ),
-                      childCount: _listings.length,
-                    ),
-                  );
-                },
+          if (widget.initialListingSlug != null) ...[
+            if (_error != null)
+              SliverToBoxAdapter(child: _buildError())
+            else if (_loading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_sharedListing == null)
+              SliverToBoxAdapter(child: _buildSharedListingUnavailable())
+            else
+              SliverToBoxAdapter(
+                child: _ListingDetails(
+                  listing: _sharedListing!,
+                  onShare: () => _shareListing(_sharedListing!),
+                  onRequestViewing: () =>
+                      _showInspectionRequest(_sharedListing!),
+                  onBackToBrowse: () =>
+                      _openInternal(widget.landProperties ? '/land' : '/'),
+                ),
               ),
-            ),
-          SliverToBoxAdapter(child: _buildInfo()),
-          SliverToBoxAdapter(child: _buildFooter()),
+          ] else ...[
+            SliverToBoxAdapter(child: _buildHero()),
+            SliverToBoxAdapter(child: _buildResultsHeader()),
+            if (_error != null)
+              SliverToBoxAdapter(child: _buildError())
+            else if (_loading)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: Center(child: CircularProgressIndicator()),
+              )
+            else if (_listings.isEmpty)
+              SliverToBoxAdapter(child: _buildEmptyState())
+            else
+              SliverPadding(
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+                sliver: SliverLayoutBuilder(
+                  builder: (context, constraints) {
+                    final width = constraints.crossAxisExtent;
+                    final columns = width >= 1040
+                        ? 3
+                        : width >= 680
+                        ? 2
+                        : 1;
+                    return SliverGrid(
+                      gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                        crossAxisCount: columns,
+                        crossAxisSpacing: 18,
+                        mainAxisSpacing: 18,
+                        mainAxisExtent: 500,
+                      ),
+                      delegate: SliverChildBuilderDelegate(
+                        (context, index) => _ListingCard(
+                          listing: _listings[index],
+                          onShare: _listings[index].slug.isEmpty
+                              ? null
+                              : () => _shareListing(_listings[index]),
+                          onRequestViewing: () =>
+                              _showInspectionRequest(_listings[index]),
+                        ),
+                        childCount: _listings.length,
+                      ),
+                    );
+                  },
+                ),
+              ),
+            SliverToBoxAdapter(child: _buildInfo()),
+            SliverToBoxAdapter(child: _buildFooter()),
+          ],
         ],
       ),
     );
   }
+
+  Widget _buildSharedListingUnavailable() => Center(
+    child: Container(
+      constraints: const BoxConstraints(maxWidth: 620),
+      margin: const EdgeInsets.all(24),
+      padding: const EdgeInsets.all(24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _line),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Column(
+        children: [
+          const Icon(Icons.home_work_outlined, color: _teal, size: 42),
+          const SizedBox(height: 12),
+          const Text(
+            'This listing is no longer available.',
+            textAlign: TextAlign.center,
+            style: TextStyle(
+              color: _navy,
+              fontSize: 19,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          const SizedBox(height: 8),
+          const Text(
+            'Browse other reviewed listings on NaijaRooms.',
+            textAlign: TextAlign.center,
+            style: TextStyle(color: _muted),
+          ),
+          const SizedBox(height: 12),
+          OutlinedButton(
+            onPressed: () =>
+                _openInternal(widget.landProperties ? '/land' : '/'),
+            child: const Text('Browse listings'),
+          ),
+        ],
+      ),
+    ),
+  );
 
   Widget _buildHeader() => LayoutBuilder(
     builder: (context, constraints) {
@@ -1253,13 +1379,121 @@ class _FixedHeaderDelegate extends SliverPersistentHeaderDelegate {
       oldDelegate.height != height || oldDelegate.child != child;
 }
 
+class _ListingDetails extends StatelessWidget {
+  const _ListingDetails({
+    required this.listing,
+    required this.onShare,
+    required this.onRequestViewing,
+    required this.onBackToBrowse,
+  });
+
+  final RentalListing listing;
+  final VoidCallback onShare;
+  final VoidCallback onRequestViewing;
+  final VoidCallback onBackToBrowse;
+
+  @override
+  Widget build(BuildContext context) => Center(
+    child: Container(
+      constraints: const BoxConstraints(maxWidth: 900),
+      margin: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: Border.all(color: _line),
+        borderRadius: BorderRadius.circular(18),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton.icon(
+              onPressed: onBackToBrowse,
+              icon: const Icon(Icons.arrow_back),
+              label: const Text('Back to listings'),
+            ),
+          ),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(14),
+            child: _ListingMediaGallery(
+              key: ValueKey(listing.slug),
+              listing: listing,
+              height: 360,
+              onShare: onShare,
+            ),
+          ),
+          const SizedBox(height: 18),
+          Text(
+            listing.priceLabel,
+            style: const TextStyle(
+              color: _navy,
+              fontSize: 24,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 6),
+          Text(
+            listing.title,
+            style: const TextStyle(
+              color: _navy,
+              fontSize: 23,
+              fontWeight: FontWeight.w700,
+            ),
+          ),
+          if (listing.location.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Text(
+              listing.location,
+              style: const TextStyle(color: _muted, fontSize: 15),
+            ),
+          ],
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 16,
+            runSpacing: 8,
+            children: [
+              if (listing.propertyType.isNotEmpty) Text(listing.propertyType),
+              if (listing.bedrooms > 0) Text('${listing.bedrooms} bedrooms'),
+              if (listing.bathrooms > 0) Text('${listing.bathrooms} bathrooms'),
+            ],
+          ),
+          if (listing.description.isNotEmpty) ...[
+            const SizedBox(height: 20),
+            const Text(
+              'About this property',
+              style: TextStyle(
+                color: _navy,
+                fontSize: 17,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+            const SizedBox(height: 6),
+            Text(
+              listing.description,
+              style: const TextStyle(color: _muted, height: 1.5),
+            ),
+          ],
+          const SizedBox(height: 22),
+          OutlinedButton(
+            onPressed: onRequestViewing,
+            child: const Text('Request Inspection'),
+          ),
+        ],
+      ),
+    ),
+  );
+}
+
 class _ListingCard extends StatelessWidget {
   const _ListingCard({
     required this.listing,
+    required this.onShare,
     required this.onRequestViewing,
   });
 
   final RentalListing listing;
+  final VoidCallback? onShare;
   final VoidCallback onRequestViewing;
 
   @override
@@ -1278,6 +1512,7 @@ class _ListingCard extends StatelessWidget {
         _ListingMediaGallery(
           key: ValueKey(listing.slug),
           listing: listing,
+          onShare: onShare,
         ),
         Expanded(
           child: Padding(
@@ -1344,9 +1579,16 @@ class _ListingCard extends StatelessWidget {
 }
 
 class _ListingMediaGallery extends StatefulWidget {
-  const _ListingMediaGallery({super.key, required this.listing});
+  const _ListingMediaGallery({
+    super.key,
+    required this.listing,
+    this.height = 185,
+    this.onShare,
+  });
 
   final RentalListing listing;
+  final double height;
+  final VoidCallback? onShare;
 
   @override
   State<_ListingMediaGallery> createState() => _ListingMediaGalleryState();
@@ -1406,7 +1648,7 @@ class _ListingMediaGalleryState extends State<_ListingMediaGallery> {
 
   @override
   Widget build(BuildContext context) => SizedBox(
-    height: 185,
+    height: widget.height,
     child: Stack(
       fit: StackFit.expand,
       children: [
@@ -1460,6 +1702,20 @@ class _ListingMediaGalleryState extends State<_ListingMediaGallery> {
                     fontWeight: FontWeight.w700,
                   ),
                 ),
+              ),
+            ),
+          ),
+        if (widget.onShare != null)
+          Positioned(
+            top: 10,
+            left: 10,
+            child: Material(
+              color: Colors.white,
+              shape: const CircleBorder(),
+              child: IconButton(
+                tooltip: 'Copy share link',
+                onPressed: widget.onShare,
+                icon: const Icon(Icons.share_outlined, color: _navy),
               ),
             ),
           ),

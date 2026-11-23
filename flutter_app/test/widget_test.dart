@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/testing.dart';
@@ -72,6 +73,28 @@ class _TestVideoPlayerPlatform extends VideoPlayerPlatform {
 }
 
 void main() {
+  test('share links open the exact home or land listing', () {
+    final baseUri = Uri.parse('https://rental.naijarooms.com/?source=test');
+
+    expect(
+      rentalListingShareUri(
+        baseUri: baseUri,
+        landProperties: false,
+        slug: 'verified-family-home',
+      ).toString(),
+      'https://rental.naijarooms.com/homes/verified-family-home/',
+    );
+    expect(
+      rentalListingShareUri(
+        baseUri: baseUri,
+        landProperties: true,
+        slug: 'lekki-land',
+        proxyPrefix: '/rentals',
+      ).toString(),
+      'https://rental.naijarooms.com/rentals/land/lekki-land/',
+    );
+  });
+
   test(
     'proxy mode prefixes rental API requests with its same-origin path',
     () async {
@@ -133,6 +156,7 @@ void main() {
       expect(find.text('Verified family home'), findsOneWidget);
       expect(find.text('₦100,000 / approx. month'), findsOneWidget);
       expect(find.byTooltip('Play property video'), findsOneWidget);
+      expect(find.byTooltip('Copy share link'), findsOneWidget);
       expect(find.text('1/3'), findsOneWidget);
       expect(tester.takeException(), isNull);
     },
@@ -232,8 +256,47 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('₦9,000,000 asking price'), findsOneWidget);
     expect(find.text('Request Inspection'), findsOneWidget);
+    expect(find.byTooltip('Copy share link'), findsOneWidget);
     expect(find.byTooltip('Play property video'), findsOneWidget);
     expect(find.text('1/2'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('shared home link opens its listing and copies its URL', (
+    tester,
+  ) async {
+    String? copiedText;
+    final messenger =
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger;
+    messenger.setMockMethodCallHandler(SystemChannels.platform, (call) async {
+      if (call.method == 'Clipboard.setData') {
+        copiedText =
+            (call.arguments as Map<dynamic, dynamic>)['text'] as String;
+      }
+      return null;
+    });
+    addTearDown(
+      () => messenger.setMockMethodCallHandler(SystemChannels.platform, null),
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: RentalHomePage(
+          initialListingSlug: 'verified-family-home',
+          api: RentalApi(client: _mockClient()),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Verified family home'), findsOneWidget);
+    expect(find.text('A verified home.'), findsOneWidget);
+    expect(find.text('Find your next home'), findsNothing);
+    await tester.tap(find.byTooltip('Copy share link'));
+    await tester.pumpAndSettle();
+
+    expect(Uri.parse(copiedText!).path, '/homes/verified-family-home/');
+    expect(find.text('Share link copied to clipboard.'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 

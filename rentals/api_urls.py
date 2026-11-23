@@ -21,6 +21,8 @@ urlpatterns = [
     ),
     path("api/public/csrf/", api_views.public_api_csrf_token, name="public_api_csrf"),
     path("api/public/listings/", api_views.public_api_listings, name="public_api_listings"),
+    path("homes/<slug:slug>/", api_views.home, name="shared_home_listing"),
+    path("land/<slug:slug>/", api_views.home, name="shared_land_listing"),
     path(
         "api/public/property-requests/",
         api_views.public_api_property_request,
