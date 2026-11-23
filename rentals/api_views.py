@@ -139,7 +139,7 @@ def _owner_required(view):
     return wrapped
 
 
-def home(request):
+def home(request, slug=None):
     flutter_index = settings.FLUTTER_WEB_BUILD_DIRECTORY / "index.html"
     if flutter_index.is_file():
         response = FileResponse(flutter_index.open("rb"), content_type="text/html")

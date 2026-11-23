@@ -33,6 +33,8 @@ class SupabaseApiWorkflowTests(TestCase):
                 self.assertEqual(match.func, api_views.home)
                 self.assertEqual(match.url_name, route_name)
                 self.assertEqual(match.kwargs["slug"], slug)
+                response = self.client.get(path)
+                self.assertEqual(response.status_code, 200)
 
     @patch("rentals.supabase_api.admin_client")
     def test_land_feed_also_includes_published_home_sales(self, get_admin):
